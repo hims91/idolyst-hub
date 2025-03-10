@@ -1,11 +1,11 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Filter, TrendingUp, Award, BarChart, Users } from 'lucide-react';
+import { Search, Filter, TrendingUp, Award, BarChart, Users, Clock } from 'lucide-react';
 import CrowdfundingCard, { CampaignData } from './ui/CrowdfundingCard';
+import { useQuery } from '@tanstack/react-query';
 
 // Mock data for campaigns
 const MOCK_CAMPAIGNS: CampaignData[] = [
@@ -131,35 +131,11 @@ const Crowdfunding: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Filter campaigns based on active category and search query
-  const filterCampaigns = () => {
-    let filteredCampaigns = [...MOCK_CAMPAIGNS];
-    
-    // Filter by category
-    if (activeCategory === 'featured') {
-      filteredCampaigns = filteredCampaigns.filter(campaign => campaign.featured);
-    } else if (activeCategory === 'trending') {
-      filteredCampaigns = filteredCampaigns.filter(campaign => campaign.trending);
-    } else if (activeCategory === 'ending') {
-      filteredCampaigns = filteredCampaigns.sort((a, b) => a.daysLeft - b.daysLeft);
-    } else if (activeCategory === 'new') {
-      filteredCampaigns = [...filteredCampaigns].reverse();
-    }
-    
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filteredCampaigns = filteredCampaigns.filter(
-        campaign =>
-          campaign.title.toLowerCase().includes(query) ||
-          campaign.description.toLowerCase().includes(query) ||
-          campaign.category.toLowerCase().includes(query) ||
-          campaign.tags.some(tag => tag.toLowerCase().includes(query))
-      );
-    }
-    
-    return filteredCampaigns;
-  };
+  const { data: campaigns = [], isLoading } = useQuery({
+    queryKey: ['campaigns', activeCategory, searchQuery],
+    queryFn: () => fetchCampaigns(activeCategory, searchQuery),
+    staleTime: 60000, // 1 minute
+  });
   
   return (
     <div className="space-y-6">
@@ -195,14 +171,56 @@ const Crowdfunding: React.FC = () => {
           ))}
         </TabsList>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filterCampaigns().map(campaign => (
-            <CrowdfundingCard key={campaign.id} campaign={campaign} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="border rounded-lg p-6 animate-pulse">
+                <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+                <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-5/6 mb-4"></div>
+                <div className="h-8 bg-gray-200 rounded-full w-1/3 mt-4"></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {campaigns.map(campaign => (
+              <CrowdfundingCard key={campaign.id} campaign={campaign} />
+            ))}
+          </div>
+        )}
       </Tabs>
     </div>
   );
 };
 
 export default Crowdfunding;
+
+const fetchCampaigns = async (category?: string, searchQuery?: string): Promise<CampaignData[]> => {
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  let filteredCampaigns = [...MOCK_CAMPAIGNS];
+  
+  if (category === 'featured') {
+    filteredCampaigns = filteredCampaigns.filter(campaign => campaign.featured);
+  } else if (category === 'trending') {
+    filteredCampaigns = filteredCampaigns.filter(campaign => campaign.trending);
+  } else if (category === 'ending') {
+    filteredCampaigns = filteredCampaigns.sort((a, b) => a.daysLeft - b.daysLeft);
+  } else if (category === 'new') {
+    filteredCampaigns = [...filteredCampaigns].reverse();
+  }
+  
+  if (searchQuery) {
+    const query = searchQuery.toLowerCase();
+    filteredCampaigns = filteredCampaigns.filter(
+      campaign =>
+        campaign.title.toLowerCase().includes(query) ||
+        campaign.description.toLowerCase().includes(query) ||
+        campaign.category.toLowerCase().includes(query) ||
+        campaign.tags.some(tag => tag.toLowerCase().includes(query))
+    );
+  }
+  
+  return filteredCampaigns;
+};
