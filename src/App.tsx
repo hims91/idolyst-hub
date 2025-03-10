@@ -8,6 +8,9 @@ import { AnimatePresence } from "framer-motion";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Sidebar from "./components/layout/Sidebar";
+import CrowdfundingPage from "./pages/Crowdfunding";
+import ProfilePage from "./pages/ProfilePage";
+import EventsPage from "./pages/EventsPage";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +26,9 @@ const App = () => (
             <AnimatePresence mode="wait">
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/funding" element={<CrowdfundingPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/events" element={<EventsPage />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

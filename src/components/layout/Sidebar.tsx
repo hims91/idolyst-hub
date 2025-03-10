@@ -11,7 +11,8 @@ import {
   Award, 
   BarChart3,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  User
 } from 'lucide-react';
 
 interface SidebarItemProps {
@@ -96,9 +97,9 @@ const Sidebar: React.FC = () => {
       </div>
       
       <div className="p-4 border-t">
-        <div className="flex items-center">
+        <Link to="/profile" className="flex items-center">
           <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
-            <Users size={16} className="text-primary" />
+            <User size={16} className="text-primary" />
           </div>
           {!isCollapsed && (
             <motion.div
@@ -107,10 +108,10 @@ const Sidebar: React.FC = () => {
               exit={{ opacity: 0, width: 0 }}
               className="ml-3 overflow-hidden"
             >
-              <div className="text-sm font-medium">Account</div>
+              <div className="text-sm font-medium">Profile</div>
             </motion.div>
           )}
-        </div>
+        </Link>
       </div>
     </motion.div>
   );
