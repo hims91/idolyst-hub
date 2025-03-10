@@ -1,4 +1,3 @@
-
 import { PostData } from '@/components/ui/PostCard';
 import { CampaignData } from '@/components/ui/CrowdfundingCard';
 
@@ -118,7 +117,7 @@ class ApiService {
       {
         id: '1',
         title: 'Announcing our $10M Series A funding round',
-        content: 'We're thrilled to announce that we've secured $10M in Series A funding led by Sequoia Capital, with participation from Y Combinator and angel investors. This funding will help us scale our platform and bring our solution to more customers globally.',
+        content: "We're thrilled to announce that we've secured $10M in Series A funding led by Sequoia Capital, with participation from Y Combinator and angel investors. This funding will help us scale our platform and bring our solution to more customers globally.",
         author: {
           name: 'Sarah Johnson',
           role: 'Founder & CEO at TechFlow',
@@ -132,7 +131,7 @@ class ApiService {
       {
         id: '2',
         title: 'The future of AI in startup ecosystems',
-        content: 'Artificial intelligence is fundamentally changing how startups operate and scale. From automating routine tasks to enabling data-driven decision making, AI tools are becoming essential for competitive advantage. Here's my take on how founders should approach AI integration...',
+        content: "Artificial intelligence is fundamentally changing how startups operate and scale. From automating routine tasks to enabling data-driven decision making, AI tools are becoming essential for competitive advantage. Here's my take on how founders should approach AI integration...",
         author: {
           name: 'David Chen',
           role: 'Tech Analyst',
@@ -146,7 +145,7 @@ class ApiService {
       {
         id: '3',
         title: 'Regulatory changes impacting fintech startups in 2023',
-        content: 'New regulations coming into effect this quarter will significantly impact how fintech startups operate, particularly around data privacy and open banking. Here's a breakdown of what founders need to know and how to prepare your compliance strategy.',
+        content: "New regulations coming into effect this quarter will significantly impact how fintech startups operate, particularly around data privacy and open banking. Here's a breakdown of what founders need to know and how to prepare your compliance strategy.",
         author: {
           name: 'Miguel Rodriguez',
           role: 'Fintech Investor',

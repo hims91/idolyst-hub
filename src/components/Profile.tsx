@@ -21,7 +21,7 @@ const MOCK_USER_POSTS: PostData[] = [
   {
     id: 'post-1',
     title: 'Five lessons I learned raising our Series A',
-    content: 'After three months of pitching to VCs, we've successfully closed our Series A round. Here are the five most important lessons I learned along the way that might help other founders on the same journey...',
+    content: "After three months of pitching to VCs, we've successfully closed our Series A round. Here are the five most important lessons I learned along the way that might help other founders on the same journey...",
     author: {
       name: 'Alex Johnson',
       role: 'Founder & CEO',
@@ -35,7 +35,7 @@ const MOCK_USER_POSTS: PostData[] = [
   {
     id: 'post-2',
     title: 'Product-market fit: How we found ours in an unexpected place',
-    content: 'We started building for enterprise customers, but discovered our product actually solved a bigger pain point for mid-market companies. Here's how we identified the shift and quickly pivoted our go-to-market strategy...',
+    content: "We started building for enterprise customers, but discovered our product actually solved a bigger pain point for mid-market companies. Here's how we identified the shift and quickly pivoted our go-to-market strategy...",
     author: {
       name: 'Alex Johnson',
       role: 'Founder & CEO',
@@ -54,7 +54,7 @@ const MOCK_USER_CAMPAIGNS: CampaignData[] = [
     id: 'campaign-1',
     title: 'TechNova Solutions: AI-powered growth platform for startups',
     shortDescription: 'Smart growth platform for startups using AI',
-    description: 'TechNova is building an all-in-one growth platform for early stage startups. Using AI algorithms, we analyze market data and user behavior to provide actionable growth strategies tailored to each startup's unique position.',
+    description: "TechNova is building an all-in-one growth platform for early stage startups. Using AI algorithms, we analyze market data and user behavior to provide actionable growth strategies tailored to each startup's unique position.",
     founders: [
       {
         name: 'Alex Johnson',
