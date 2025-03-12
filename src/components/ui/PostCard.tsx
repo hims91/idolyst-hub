@@ -1,16 +1,28 @@
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { ArrowUp, ArrowDown, MessageSquare, Share2, MoreHorizontal } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowUp, ArrowDown, MessageSquare, Share2, MoreHorizontal, Bookmark, BookmarkCheck, ThumbsUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import UserAvatar from './UserAvatar';
 import { Button } from '@/components/ui/button';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
+import { formatDistanceToNow } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
 export interface PostData {
   id: string;
   title: string;
   content: string;
   author: {
+    id: string;
     name: string;
     avatar?: string;
     role: string;
@@ -20,6 +32,9 @@ export interface PostData {
   downvotes: number;
   commentCount: number;
   timeAgo: string;
+  createdAt: string;
+  tags?: string[];
+  imageUrl?: string;
 }
 
 interface PostCardProps {
@@ -27,10 +42,25 @@ interface PostCardProps {
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post }) => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [votes, setVotes] = useState({ up: post.upvotes, down: post.downvotes });
   const [voteStatus, setVoteStatus] = useState<'up' | 'down' | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const isContentLong = post.content.length > 280;
 
   const handleVote = (type: 'up' | 'down') => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please sign in to vote on posts',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (voteStatus === type) {
       // Remove vote
       setVotes(prev => ({
@@ -48,77 +78,257 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     }
   };
 
+  const toggleSaved = () => {
+    if (!user) {
+      toast({
+        title: 'Authentication required',
+        description: 'Please sign in to save posts',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSaved(!saved);
+    toast({
+      title: saved ? 'Post removed from saved' : 'Post saved',
+      description: saved ? 'This post has been removed from your saved items' : 'This post has been added to your saved items',
+    });
+  };
+
+  const toggleComments = () => {
+    setShowComments(!showComments);
+  };
+
+  const handleShare = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
+    toast({
+      title: 'Link copied',
+      description: 'Post link has been copied to clipboard',
+    });
+  };
+
   return (
     <motion.div
+      layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       className="bg-card rounded-lg border shadow-sm overflow-hidden"
     >
-      <div className="p-4">
+      <div className="p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-3">
             <UserAvatar name={post.author.name} src={post.author.avatar} size="md" />
             <div>
               <div className="font-medium">{post.author.name}</div>
-              <div className="text-sm text-muted-foreground">{post.author.role} • {post.timeAgo}</div>
+              <div className="text-xs text-muted-foreground flex items-center">
+                <span>{post.author.role}</span>
+                <span className="mx-1">•</span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>{post.timeAgo}</span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
             </div>
           </div>
-          <div>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-secondary text-primary">
+          <div className="flex items-center space-x-2">
+            <Badge variant="secondary" className="text-xs font-medium">
               {post.category}
-            </span>
+            </Badge>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={toggleSaved}>
+                  {saved ? <BookmarkCheck className="mr-2 h-4 w-4" /> : <Bookmark className="mr-2 h-4 w-4" />}
+                  {saved ? 'Unsave post' : 'Save post'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleShare}>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share post
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <ThumbsUp className="mr-2 h-4 w-4" />
+                  Follow author
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         
         <h3 className="text-lg font-semibold mb-2">{post.title}</h3>
-        <p className="text-muted-foreground mb-4">{post.content}</p>
+
+        {post.imageUrl && (
+          <div className="mb-4 rounded-md overflow-hidden">
+            <img 
+              src={post.imageUrl} 
+              alt={post.title} 
+              className="w-full h-auto object-cover"
+            />
+          </div>
+        )}
         
-        <div className="flex items-center justify-between">
+        <div className="text-muted-foreground mb-4">
+          {isContentLong && !isExpanded ? (
+            <>
+              <p>{post.content.substring(0, 280)}...</p>
+              <Button 
+                variant="link" 
+                size="sm" 
+                onClick={() => setIsExpanded(true)}
+                className="p-0 h-auto text-primary font-normal"
+              >
+                Show more
+              </Button>
+            </>
+          ) : (
+            <p>{post.content}</p>
+          )}
+          
+          {isContentLong && isExpanded && (
+            <Button 
+              variant="link" 
+              size="sm" 
+              onClick={() => setIsExpanded(false)}
+              className="p-0 h-auto text-primary font-normal mt-1"
+            >
+              Show less
+            </Button>
+          )}
+        </div>
+
+        {post.tags && post.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-4">
+            {post.tags.map(tag => (
+              <Badge key={tag} variant="outline" className="text-xs">
+                #{tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+        
+        <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex items-center space-x-4">
             <div className="flex items-center">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className={cn(
-                  "px-2 h-8",
-                  voteStatus === 'up' && "text-primary font-medium"
-                )}
-                onClick={() => handleVote('up')}
-              >
-                <ArrowUp className="h-4 w-4 mr-1" />
-                <span>{votes.up}</span>
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className={cn(
-                  "px-2 h-8",
-                  voteStatus === 'down' && "text-primary font-medium"
-                )}
-                onClick={() => handleVote('down')}
-              >
-                <ArrowDown className="h-4 w-4 mr-1" />
-                <span>{votes.down}</span>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className={cn(
+                      "px-2 h-8",
+                      voteStatus === 'up' && "text-green-600 dark:text-green-500 font-medium"
+                    )}
+                    onClick={() => handleVote('up')}
+                  >
+                    <ArrowUp className="h-4 w-4 mr-1" />
+                    <span>{votes.up}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Upvote</TooltipContent>
+              </Tooltip>
+              
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className={cn(
+                      "px-2 h-8",
+                      voteStatus === 'down' && "text-red-600 dark:text-red-500 font-medium"
+                    )}
+                    onClick={() => handleVote('down')}
+                  >
+                    <ArrowDown className="h-4 w-4 mr-1" />
+                    <span>{votes.down}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Downvote</TooltipContent>
+              </Tooltip>
             </div>
             
-            <Button variant="ghost" size="sm" className="px-2 h-8">
-              <MessageSquare className="h-4 w-4 mr-1" />
-              <span>{post.commentCount}</span>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className={cn(
+                    "px-2 h-8",
+                    showComments && "text-primary font-medium"
+                  )}
+                  onClick={toggleComments}
+                >
+                  <MessageSquare className="h-4 w-4 mr-1" />
+                  <span>{post.commentCount}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {showComments ? 'Hide comments' : 'Show comments'}
+              </TooltipContent>
+            </Tooltip>
           </div>
           
           <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <Share2 className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-8 w-8 p-0"
+                  onClick={handleShare}
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Share</TooltipContent>
+            </Tooltip>
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className={cn(
+                    "h-8 w-8 p-0",
+                    saved && "text-primary"
+                  )}
+                  onClick={toggleSaved}
+                >
+                  {saved ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{saved ? 'Unsave' : 'Save'}</TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>
+
+      {/* Comments section - collapsed by default */}
+      <AnimatePresence>
+        {showComments && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="border-t bg-muted/30"
+          >
+            <div className="p-4">
+              <div className="text-sm text-muted-foreground mb-4">
+                Comments coming soon...
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

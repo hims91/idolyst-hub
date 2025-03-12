@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -10,7 +10,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/context/AuthContext';
 import { LoginCredentials } from '@/services/api';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import PageTransition from '@/components/layout/PageTransition';
 
 const formSchema = z.object({
@@ -20,9 +21,17 @@ const formSchema = z.object({
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, authStatus } = useAuth();
   const [isLoading, setIsLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
+  const [loginError, setLoginError] = React.useState('');
+  
+  useEffect(() => {
+    // Redirect if already authenticated
+    if (authStatus === 'authenticated') {
+      navigate('/');
+    }
+  }, [authStatus, navigate]);
   
   const form = useForm<LoginCredentials>({
     resolver: zodResolver(formSchema),
@@ -34,16 +43,28 @@ const LoginPage = () => {
   
   const onSubmit = async (data: LoginCredentials) => {
     setIsLoading(true);
+    setLoginError('');
+    
     try {
       await login(data);
       navigate('/');
     } catch (error) {
-      // Error is already handled in the auth context
-      console.error('Login error:', error);
+      setLoginError(error instanceof Error ? error.message : 'Invalid credentials. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
+  
+  if (authStatus === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin mb-4"></div>
+          <p className="text-muted-foreground">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <PageTransition>
@@ -57,6 +78,12 @@ const LoginPage = () => {
           </CardHeader>
           
           <CardContent>
+            {loginError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{loginError}</AlertDescription>
+              </Alert>
+            )}
+            
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
@@ -66,7 +93,12 @@ const LoginPage = () => {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input placeholder="yourname@example.com" {...field} />
+                        <Input 
+                          placeholder="yourname@example.com" 
+                          type="email"
+                          autoComplete="email"
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -84,6 +116,7 @@ const LoginPage = () => {
                           <Input
                             type={showPassword ? 'text' : 'password'}
                             placeholder="••••••••"
+                            autoComplete="current-password"
                             {...field}
                           />
                           <Button
@@ -103,7 +136,12 @@ const LoginPage = () => {
                 />
                 
                 <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Signing in...' : 'Sign in'}
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing in...
+                    </>
+                  ) : 'Sign in'}
                 </Button>
               </form>
             </Form>

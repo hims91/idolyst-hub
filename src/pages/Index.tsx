@@ -1,20 +1,31 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from '@/components/layout/Header';
 import Feed from '@/components/Feed';
+import CreatePostForm from '@/components/CreatePostForm';
 import PageTransition from '@/components/layout/PageTransition';
+import { useAuth } from '@/context/AuthContext';
 
 const categories = [
   { id: 'all', name: 'All' },
   { id: 'Startup News', name: 'Startup News' },
   { id: 'Expert Opinions', name: 'Expert Opinions' },
   { id: 'Funding Updates', name: 'Funding Updates' },
+  { id: 'Tech Trends', name: 'Tech Trends' },
+  { id: 'Product Launch', name: 'Product Launch' },
 ];
 
 const Index = () => {
+  const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState('all');
+  const [refreshKey, setRefreshKey] = useState(0);
+  
+  const handlePostSuccess = useCallback(() => {
+    // Trigger a refresh of the feed
+    setRefreshKey(prev => prev + 1);
+  }, []);
   
   return (
     <PageTransition>
@@ -34,14 +45,17 @@ const Index = () => {
             </p>
           </motion.div>
           
+          {/* Post creation form */}
+          <CreatePostForm onSuccess={handlePostSuccess} />
+          
           <Tabs defaultValue="all" onValueChange={setActiveCategory} className="w-full">
-            <div className="border-b mb-6">
-              <TabsList className="bg-transparent h-auto p-0">
+            <div className="border-b mb-6 sticky top-0 bg-background z-10 pb-1">
+              <TabsList className="bg-transparent h-auto p-0 overflow-x-auto flex-nowrap hide-scrollbar">
                 {categories.map(category => (
                   <TabsTrigger
                     key={category.id}
                     value={category.id}
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:rounded-none data-[state=active]:bg-transparent px-4 py-2"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:rounded-none data-[state=active]:bg-transparent px-4 py-2 whitespace-nowrap"
                   >
                     {category.name}
                   </TabsTrigger>
@@ -49,12 +63,12 @@ const Index = () => {
               </TabsList>
             </div>
             
-            <TabsContent value="all">
+            <TabsContent value="all" key={`feed-all-${refreshKey}`}>
               <Feed />
             </TabsContent>
             
             {categories.slice(1).map(category => (
-              <TabsContent key={category.id} value={category.id}>
+              <TabsContent key={`feed-${category.id}-${refreshKey}`} value={category.id}>
                 <Feed category={category.id} />
               </TabsContent>
             ))}
