@@ -1,9 +1,18 @@
+
 export interface User {
   id: string;
   name: string;
   email: string;
   role: string;
   avatar?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  socialLinks?: {
+    twitter?: string;
+    linkedin?: string;
+    github?: string;
+  };
 }
 
 export interface LoginCredentials {
@@ -15,6 +24,22 @@ export interface RegisterData {
   name: string;
   email: string;
   password: string;
+}
+
+export interface Comment {
+  id: string;
+  content: string;
+  author: {
+    id: string;
+    name: string;
+    avatar?: string;
+    role: string;
+  };
+  createdAt: string;
+  timeAgo: string;
+  upvotes: number;
+  downvotes: number;
+  replies: Comment[];
 }
 
 // Augment the API service with new methods
@@ -36,6 +61,20 @@ const apiService = {
     }
     
     throw new Error('Invalid credentials');
+  },
+  
+  socialLogin: async (provider: 'email' | 'google' | 'facebook'): Promise<User> => {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Mock social login logic
+    return {
+      id: '2',
+      name: `${provider.charAt(0).toUpperCase() + provider.slice(1)} User`,
+      email: `user@${provider}.com`,
+      role: 'Startup Enthusiast',
+      avatar: `https://ui-avatars.com/api/?name=${provider}+User`,
+    };
   },
   
   register: async (data: RegisterData): Promise<User> => {
@@ -77,7 +116,46 @@ const apiService = {
       email: data.email || 'demo@example.com',
       role: data.role || 'Startup Founder',
       avatar: data.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(data.name || 'Demo User')}`,
+      bio: data.bio,
+      location: data.location,
+      website: data.website,
+      socialLinks: data.socialLinks,
     };
+  },
+  
+  requestPasswordReset: async (email: string): Promise<void> => {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    
+    // Mock password reset logic
+    if (email !== 'demo@example.com') {
+      // For demo purposes we'll pretend we sent an email
+      console.log(`Password reset requested for: ${email}`);
+      return;
+    }
+    
+    return;
+  },
+  
+  verifyPasswordResetToken: async (token: string): Promise<boolean> => {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
+    // Mock token verification logic
+    return token === 'valid-token';
+  },
+  
+  resetPassword: async (token: string, newPassword: string): Promise<void> => {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Mock password reset logic
+    if (token !== 'valid-token') {
+      throw new Error('Invalid or expired token');
+    }
+    
+    console.log(`Password updated to: ${newPassword}`);
+    return;
   },
   
   // Posts methods
@@ -104,6 +182,36 @@ const apiService = {
       createdAt: new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)).toISOString(),
       tags: [`tag-${i % 10 + 1}`, `tag-${(i + 5) % 15 + 1}`],
       imageUrl: i % 3 === 0 ? `https://picsum.photos/seed/${i + 1}/800/400` : undefined,
+      status: 'published',
+      comments: Array.from({ length: Math.floor(Math.random() * 5) }, (_, j) => ({
+        id: `comment-${i}-${j}`,
+        content: `This is comment ${j + 1} on post ${i + 1}. Very insightful post!`,
+        author: {
+          id: `user-${(j % 5) + 6}`,
+          name: `Commenter ${(j % 5) + 1}`,
+          avatar: `https://ui-avatars.com/api/?name=Commenter+${(j % 5) + 1}`,
+          role: ['Startup Founder', 'Investor', 'Mentor', 'Developer', 'Product Manager'][j % 5],
+        },
+        createdAt: new Date(Date.now() - Math.floor(Math.random() * 2 * 24 * 60 * 60 * 1000)).toISOString(),
+        timeAgo: `${Math.floor(Math.random() * 12) + 1}h ago`,
+        upvotes: Math.floor(Math.random() * 20),
+        downvotes: Math.floor(Math.random() * 5),
+        replies: Array.from({ length: Math.floor(Math.random() * 3) }, (_, k) => ({
+          id: `reply-${i}-${j}-${k}`,
+          content: `This is a reply to comment ${j + 1} on post ${i + 1}.`,
+          author: {
+            id: `user-${(k % 5) + 11}`,
+            name: `Replier ${(k % 5) + 1}`,
+            avatar: `https://ui-avatars.com/api/?name=Replier+${(k % 5) + 1}`,
+            role: ['Startup Founder', 'Investor', 'Mentor', 'Developer', 'Product Manager'][k % 5],
+          },
+          createdAt: new Date(Date.now() - Math.floor(Math.random() * 24 * 60 * 60 * 1000)).toISOString(),
+          timeAgo: `${Math.floor(Math.random() * 6) + 1}h ago`,
+          upvotes: Math.floor(Math.random() * 10),
+          downvotes: Math.floor(Math.random() * 2),
+          replies: []
+        }))
+      }))
     }));
     
     // Filter by category if provided
@@ -141,10 +249,47 @@ const apiService = {
       createdAt: new Date().toISOString(),
       tags: [`trending`, `new`, `featured`],
       imageUrl: i === 0 ? `https://picsum.photos/seed/latest${i}/800/400` : undefined,
+      status: 'published',
+      comments: []
     }));
     
     return latestPosts;
   },
+  
+  addComment: async (postId: string, content: string, parentId?: string): Promise<Comment> => {
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 700));
+    
+    // Create a new comment
+    return {
+      id: `comment-${Date.now()}`,
+      content: content,
+      author: {
+        id: '1',
+        name: 'Demo User',
+        avatar: 'https://ui-avatars.com/api/?name=Demo+User',
+        role: 'Startup Founder',
+      },
+      createdAt: new Date().toISOString(),
+      timeAgo: 'Just now',
+      upvotes: 0,
+      downvotes: 0,
+      replies: []
+    };
+  },
+  
+  // Mock implementations for other parts of the system to fix type errors
+  getAdminStats: async () => ({ users: 0, posts: 0, comments: 0, events: 0 }),
+  getUserProfile: async (id: string) => ({ id, name: 'User', role: 'Member', avatar: '' }),
+  getCommunityDiscussions: async () => [],
+  getCommunityMembers: async () => [],
+  getCommunityEvents: async () => [],
+  getMarketInsights: async () => [],
+  getUserActivityInsights: async () => [],
+  getFundingInsights: async () => [],
+  getAvailableRewards: async () => [],
+  getUserBadges: async () => [],
+  getPointsLeaderboard: async () => [],
 };
 
 export { apiService };

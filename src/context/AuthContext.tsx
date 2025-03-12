@@ -5,6 +5,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 
 export type AuthStatus = 'authenticated' | 'unauthenticated' | 'loading';
+export type AuthProvider = 'email' | 'google' | 'facebook';
 
 interface AuthContextType {
   user: User | null;
@@ -15,6 +16,10 @@ interface AuthContextType {
   logout: () => void;
   refreshSession: () => Promise<void>;
   updateUserProfile: (data: Partial<User>) => Promise<void>;
+  socialLogin: (provider: AuthProvider) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  verifyResetToken: (token: string) => Promise<boolean>;
+  setNewPassword: (token: string, newPassword: string) => Promise<void>;
 }
 
 const AUTH_STORAGE_KEY = 'idolyst_auth_session';
@@ -99,6 +104,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const socialLogin = async (provider: AuthProvider) => {
+    setIsLoading(true);
+    try {
+      const user = await apiService.socialLogin(provider);
+      setUser(user);
+      setAuthStatus('authenticated');
+      saveSession(user);
+      
+      toast({
+        title: 'Login successful',
+        description: `Welcome, ${user.name}!`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Social login failed',
+        description: error instanceof Error ? error.message : `Failed to login with ${provider}`,
+        variant: 'destructive',
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const register = async (data: RegisterData) => {
     setIsLoading(true);
     try {
@@ -115,6 +144,64 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       toast({
         title: 'Registration failed',
         description: error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    setIsLoading(true);
+    try {
+      await apiService.requestPasswordReset(email);
+      toast({
+        title: 'Password reset initiated',
+        description: 'If an account exists with that email, you will receive a password reset link',
+      });
+    } catch (error) {
+      toast({
+        title: 'Reset request failed',
+        description: error instanceof Error ? error.message : 'Failed to request password reset',
+        variant: 'destructive',
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyResetToken = async (token: string) => {
+    setIsLoading(true);
+    try {
+      const isValid = await apiService.verifyPasswordResetToken(token);
+      return isValid;
+    } catch (error) {
+      toast({
+        title: 'Invalid or expired token',
+        description: 'The password reset link is no longer valid. Please request a new one.',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const setNewPassword = async (token: string, newPassword: string) => {
+    setIsLoading(true);
+    try {
+      await apiService.resetPassword(token, newPassword);
+      toast({
+        title: 'Password updated',
+        description: 'Your password has been successfully updated. You can now log in with your new password.',
+      });
+      navigate('/login');
+    } catch (error) {
+      toast({
+        title: 'Password reset failed',
+        description: error instanceof Error ? error.message : 'Failed to reset password',
         variant: 'destructive',
       });
       throw error;
@@ -169,7 +256,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register, 
         logout, 
         refreshSession,
-        updateUserProfile
+        updateUserProfile,
+        socialLogin,
+        resetPassword,
+        verifyResetToken,
+        setNewPassword
       }}
     >
       {children}

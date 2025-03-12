@@ -16,6 +16,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import CommentSection from '@/components/CommentSection';
+import { apiService } from '@/services/api';
 
 export interface PostData {
   id: string;
@@ -35,6 +37,8 @@ export interface PostData {
   createdAt: string;
   tags?: string[];
   imageUrl?: string;
+  status?: string;
+  comments?: any[];
 }
 
 interface PostCardProps {
@@ -49,6 +53,8 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const [saved, setSaved] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [comments, setComments] = useState(post.comments || []);
+  const [commentCount, setCommentCount] = useState(post.commentCount);
   const isContentLong = post.content.length > 280;
 
   const handleVote = (type: 'up' | 'down') => {
@@ -105,6 +111,33 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       title: 'Link copied',
       description: 'Post link has been copied to clipboard',
     });
+  };
+  
+  const handleAddComment = async (content: string, parentId?: string) => {
+    try {
+      const newComment = await apiService.addComment(post.id, content, parentId);
+      
+      if (parentId) {
+        // Add reply to existing comment
+        const updatedComments = comments.map(comment => {
+          if (comment.id === parentId) {
+            return {
+              ...comment,
+              replies: [...comment.replies, newComment]
+            };
+          }
+          return comment;
+        });
+        setComments(updatedComments);
+      } else {
+        // Add new top-level comment
+        setComments([...comments, newComment]);
+        setCommentCount(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+      throw error;
+    }
   };
 
   return (
@@ -267,7 +300,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                   onClick={toggleComments}
                 >
                   <MessageSquare className="h-4 w-4 mr-1" />
-                  <span>{post.commentCount}</span>
+                  <span>{commentCount}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -322,9 +355,11 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
             className="border-t bg-muted/30"
           >
             <div className="p-4">
-              <div className="text-sm text-muted-foreground mb-4">
-                Comments coming soon...
-              </div>
+              <CommentSection 
+                postId={post.id}
+                comments={comments}
+                onAddComment={handleAddComment}
+              />
             </div>
           </motion.div>
         )}
