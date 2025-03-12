@@ -29,10 +29,10 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+      <BrowserRouter>
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
           <AnimatePresence mode="wait">
             <Routes>
               <Route
@@ -58,8 +58,8 @@ const App = () => (
               <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
             </Routes>
           </AnimatePresence>
-        </BrowserRouter>
-      </AuthProvider>
+        </AuthProvider>
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );

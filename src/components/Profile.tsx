@@ -23,8 +23,10 @@ const MOCK_USER_POSTS: PostData[] = [
     title: 'Five lessons I learned raising our Series A',
     content: "After three months of pitching to VCs, we've successfully closed our Series A round. Here are the five most important lessons I learned along the way that might help other founders on the same journey...",
     author: {
+      id: "user-1",
       name: 'Alex Johnson',
       role: 'Founder & CEO',
+      avatar: '/images/avatars/alex.jpg'
     },
     category: 'Founder Advice',
     upvotes: 89,
@@ -37,8 +39,10 @@ const MOCK_USER_POSTS: PostData[] = [
     title: 'Product-market fit: How we found ours in an unexpected place',
     content: "We started building for enterprise customers, but discovered our product actually solved a bigger pain point for mid-market companies. Here's how we identified the shift and quickly pivoted our go-to-market strategy...",
     author: {
+      id: "user-1",
       name: 'Alex Johnson',
       role: 'Founder & CEO',
+      avatar: '/images/avatars/alex.jpg'
     },
     category: 'Product Development',
     upvotes: 124,
@@ -57,8 +61,10 @@ const MOCK_USER_CAMPAIGNS: CampaignData[] = [
     description: "TechNova is building an all-in-one growth platform for early stage startups. Using AI algorithms, we analyze market data and user behavior to provide actionable growth strategies tailored to each startup's unique position.",
     founders: [
       {
+        id: "user-1",
         name: 'Alex Johnson',
         role: 'Founder & CEO',
+        avatar: '/images/avatars/alex.jpg'
       }
     ],
     category: 'SaaS',
@@ -78,12 +84,38 @@ const MOCK_USER_CAMPAIGNS: CampaignData[] = [
   },
 ];
 
+// Create a mock profile user with all the required fields
+const mockProfileUser = {
+  id: 'user-1',
+  name: 'Alex Johnson',
+  role: 'Founder & CEO',
+  avatar: '/images/avatars/alex.jpg',
+  email: 'alex@technova.io',
+  company: 'TechNova Solutions',
+  bio: 'Serial entrepreneur with 10+ years experience in SaaS and AI. Previously founded and sold two startups in the analytics space. Currently building the next generation of growth tools for early-stage companies.',
+  location: 'San Francisco, CA',
+  website: 'technova.io',
+  joinDate: 'Jan 2023',
+  badges: [
+    { id: 'badge-1', name: 'Verified Founder', icon: 'user' },
+    { id: 'badge-2', name: 'Top Contributor', icon: 'award' },
+    { id: 'badge-3', name: 'Angel Investor', icon: 'rocket' }
+  ],
+  skills: ['AI/ML', 'Growth Strategy', 'Fundraising', 'Product Development', 'SaaS'],
+  followers: 1420,
+  following: 358,
+  posts: 47,
+  startups: 3,
+  investments: 12,
+};
+
 const Profile: React.FC = () => {
   const [isFollowing, setIsFollowing] = useState(false);
   
+  // Updated to use our mock user instead of an API call
   const { data: user, isLoading } = useQuery({
     queryKey: ['profile', 'user-1'],
-    queryFn: () => apiService.getUserProfile('user-1'),
+    queryFn: () => Promise.resolve(mockProfileUser),
   });
   
   const toggleFollow = () => {

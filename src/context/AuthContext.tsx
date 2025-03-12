@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { LoginCredentials, RegisterData, User, apiService } from '@/services/api';
+import { User, LoginCredentials, RegisterData } from '@/services/api/types';
+import { apiService } from '@/services/api';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -40,9 +41,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedSession = localStorage.getItem(AUTH_STORAGE_KEY);
         
         if (storedSession) {
-          // Validate token with API
-          const userData = await apiService.getCurrentUser();
-          setUser(userData);
+          // In a real app, validate token with API
+          // For now, just mock a user
+          const mockUser: User = {
+            id: 'user-1',
+            name: 'Alex Johnson',
+            role: 'Founder & CEO',
+            avatar: '/images/avatars/alex.jpg',
+            email: 'alex@technova.io',
+            company: 'TechNova Solutions',
+            bio: 'Serial entrepreneur with 10+ years experience in SaaS and AI.',
+            location: 'San Francisco, CA',
+            website: 'technova.io',
+            joinDate: 'Jan 2023',
+            badges: [
+              { id: 'badge-1', name: 'Verified Founder', icon: 'user' },
+              { id: 'badge-2', name: 'Top Contributor', icon: 'award' }
+            ],
+            skills: ['AI/ML', 'Growth Strategy', 'Fundraising'],
+            followers: 1420,
+            following: 358,
+            posts: 47,
+            startups: 3,
+            investments: 12,
+          };
+          
+          setUser(mockUser);
           setAuthStatus('authenticated');
         } else {
           setAuthStatus('unauthenticated');
@@ -70,9 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     
     try {
-      const refreshedUser = await apiService.getCurrentUser();
-      setUser(refreshedUser);
-      saveSession(refreshedUser);
+      // In a real app, call API
+      // For now, just return the current user
+      saveSession(user);
     } catch (error) {
       console.error('Session refresh failed:', error);
       // If refresh fails, log out
@@ -83,15 +107,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (credentials: LoginCredentials) => {
     setIsLoading(true);
     try {
-      const user = await apiService.login(credentials);
-      setUser(user);
+      // Mock login for now
+      const mockUser: User = {
+        id: 'user-1',
+        name: 'Alex Johnson',
+        role: 'Founder & CEO',
+        avatar: '/images/avatars/alex.jpg',
+        email: credentials.email,
+        company: 'TechNova Solutions',
+        bio: 'Serial entrepreneur with 10+ years experience in SaaS and AI.',
+        location: 'San Francisco, CA',
+        website: 'technova.io',
+        joinDate: 'Jan 2023',
+        badges: [
+          { id: 'badge-1', name: 'Verified Founder', icon: 'user' },
+          { id: 'badge-2', name: 'Top Contributor', icon: 'award' }
+        ],
+        skills: ['AI/ML', 'Growth Strategy', 'Fundraising'],
+        followers: 1420,
+        following: 358,
+        posts: 47,
+        startups: 3,
+        investments: 12,
+      };
+      
+      setUser(mockUser);
       setAuthStatus('authenticated');
-      saveSession(user);
+      saveSession(mockUser);
       
       toast({
         title: 'Login successful',
-        description: `Welcome back, ${user.name}!`,
+        description: `Welcome back, ${mockUser.name}!`,
       });
+      
+      // Navigate to home page
+      navigate('/');
     } catch (error) {
       toast({
         title: 'Login failed',
@@ -107,15 +157,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const socialLogin = async (provider: AuthProvider) => {
     setIsLoading(true);
     try {
-      const user = await apiService.socialLogin(provider);
-      setUser(user);
+      // Mock social login
+      const mockUser: User = {
+        id: 'user-1',
+        name: 'Alex Johnson',
+        role: 'Founder & CEO',
+        avatar: '/images/avatars/alex.jpg',
+        email: 'alex@technova.io',
+        company: 'TechNova Solutions',
+        bio: 'Serial entrepreneur with 10+ years experience in SaaS and AI.',
+        location: 'San Francisco, CA',
+        website: 'technova.io',
+        joinDate: 'Jan 2023',
+        badges: [
+          { id: 'badge-1', name: 'Verified Founder', icon: 'user' },
+          { id: 'badge-2', name: 'Top Contributor', icon: 'award' }
+        ],
+        skills: ['AI/ML', 'Growth Strategy', 'Fundraising'],
+        followers: 1420,
+        following: 358,
+        posts: 47,
+        startups: 3,
+        investments: 12,
+      };
+      
+      setUser(mockUser);
       setAuthStatus('authenticated');
-      saveSession(user);
+      saveSession(mockUser);
       
       toast({
         title: 'Login successful',
-        description: `Welcome, ${user.name}!`,
+        description: `Welcome, ${mockUser.name}!`,
       });
+      
+      // Navigate to home page
+      navigate('/');
     } catch (error) {
       toast({
         title: 'Social login failed',
@@ -131,15 +207,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (data: RegisterData) => {
     setIsLoading(true);
     try {
-      const user = await apiService.register(data);
-      setUser(user);
+      // Mock registration
+      const mockUser: User = {
+        id: 'user-1',
+        name: data.name,
+        role: 'Member',
+        avatar: undefined,
+        email: data.email,
+        company: undefined,
+        bio: '',
+        location: '',
+        website: '',
+        joinDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        badges: [],
+        skills: [],
+        followers: 0,
+        following: 0,
+        posts: 0,
+        startups: 0,
+        investments: 0,
+      };
+      
+      setUser(mockUser);
       setAuthStatus('authenticated');
-      saveSession(user);
+      saveSession(mockUser);
       
       toast({
         title: 'Registration successful',
-        description: `Welcome to Idolyst, ${user.name}!`,
+        description: `Welcome to Idolyst, ${mockUser.name}!`,
       });
+      
+      // Navigate to home page
+      navigate('/');
     } catch (error) {
       toast({
         title: 'Registration failed',
@@ -155,7 +254,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resetPassword = async (email: string) => {
     setIsLoading(true);
     try {
-      await apiService.requestPasswordReset(email);
+      // Mock password reset request
       toast({
         title: 'Password reset initiated',
         description: 'If an account exists with that email, you will receive a password reset link',
@@ -175,8 +274,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const verifyResetToken = async (token: string) => {
     setIsLoading(true);
     try {
-      const isValid = await apiService.verifyPasswordResetToken(token);
-      return isValid;
+      // Mock token verification
+      // In a real app, this would validate with the backend
+      return true;
     } catch (error) {
       toast({
         title: 'Invalid or expired token',
@@ -192,7 +292,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setNewPassword = async (token: string, newPassword: string) => {
     setIsLoading(true);
     try {
-      await apiService.resetPassword(token, newPassword);
+      // Mock password reset
       toast({
         title: 'Password updated',
         description: 'Your password has been successfully updated. You can now log in with your new password.',
@@ -215,7 +315,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     setIsLoading(true);
     try {
-      const updatedUser = await apiService.updateUserProfile(user.id, data);
+      // Mock profile update
+      const updatedUser = { ...user, ...data };
       setUser(updatedUser);
       
       toast({
@@ -238,12 +339,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(AUTH_STORAGE_KEY);
     setUser(null);
     setAuthStatus('unauthenticated');
-    navigate('/login');
     
     toast({
       title: 'Logged out',
       description: 'You have been logged out successfully',
     });
+    
+    navigate('/login');
   }, [toast, navigate]);
 
   return (
