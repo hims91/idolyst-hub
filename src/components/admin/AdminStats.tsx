@@ -1,161 +1,92 @@
-
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { apiService } from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  ResponsiveContainer, LineChart, Line, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell
-} from 'recharts';
-import { 
-  Users, FileText, Rocket, DollarSign, 
-  TrendingUp, ActivitySquare, BarChart2
-} from 'lucide-react';
+import { AdminStats as AdminStatsType } from '@/services/api/types';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+interface Props {
+  stats: AdminStatsType;
+}
 
-const AdminStats = () => {
-  const { data, isLoading } = useQuery({
-    queryKey: ['admin', 'stats'],
-    queryFn: () => apiService.getAdminStats(),
-  });
-  
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardHeader className="pb-2">
-              <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <div className="h-8 bg-gray-200 rounded w-16 mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-full"></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
-  
+const AdminStats: React.FC<Props> = ({ stats }) => {
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {data?.summaryCards.map((card, index) => {
-          const Icon = 
-            card.type === 'users' ? Users :
-            card.type === 'posts' ? FileText :
-            card.type === 'campaigns' ? Rocket : DollarSign;
-          
-          return (
-            <Card key={index}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    {card.title}
-                  </CardTitle>
-                  <Icon className="h-4 w-4 text-muted-foreground" />
-                </div>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <div className="text-2xl font-bold">
-                  {card.value}
-                </div>
-                <p className={`text-xs flex items-center ${card.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  <TrendingUp className={`h-3 w-3 mr-1 ${card.change < 0 ? 'rotate-180' : ''}`} />
-                  {card.change >= 0 ? '+' : ''}{card.change}% from last month
-                </p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle>User Activity</CardTitle>
-              <ActivitySquare className="h-5 w-5 text-muted-foreground" />
-            </div>
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {stats.summaryCards.map((card, index) => (
+        <Card key={index}>
+          <CardHeader>
+            <CardTitle>{card.title}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={data?.userActivity}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="signups" stroke="#8884d8" activeDot={{ r: 8 }} name="New Signups" />
-                  <Line type="monotone" dataKey="active" stroke="#82ca9d" name="Active Users" />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="text-2xl font-bold">{card.value}</div>
+            <div className={`text-sm ${card.trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
+              {card.change > 0 ? '+' : ''}{card.change}%
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <CardTitle>Content Distribution</CardTitle>
-              <PieChart className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data?.contentDistribution}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {data?.contentDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle>Monthly Revenue</CardTitle>
-            <BarChart2 className="h-5 w-5 text-muted-foreground" />
-          </div>
+      ))}
+
+      <Card className="md:col-span-2">
+        <CardHeader>
+          <CardTitle>User Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={data?.monthlyRevenue}
-                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={stats.userActivity}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip />
+              <Line type="monotone" dataKey="active" stroke="#8884d8" name="Active Users" />
+              <Line type="monotone" dataKey="new" stroke="#82ca9d" name="New Users" />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle>Content Distribution</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={stats.contentDistribution}
+                dataKey="value"
+                nameKey="type"
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                fill="#8884d8"
+                label
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip formatter={(value) => [`$${value}`, 'Revenue']} />
-                <Legend />
-                <Bar dataKey="revenue" fill="#8884d8" name="Revenue ($)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+                {
+                  stats.contentDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))
+                }
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      <Card className="md:col-span-2 lg:col-span-4">
+        <CardHeader>
+          <CardTitle>Monthly Revenue</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={stats.monthlyRevenue}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip />
+              <Line type="monotone" dataKey="revenue" stroke="#8884d8" name="Revenue" />
+            </LineChart>
+          </ResponsiveContainer>
         </CardContent>
       </Card>
     </div>

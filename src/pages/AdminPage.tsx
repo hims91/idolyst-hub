@@ -1,19 +1,17 @@
-
-import React, { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import Header from "@/components/layout/Header";
-import PageTransition from "@/components/layout/PageTransition";
-import { AdminStats } from "@/components/admin/AdminStats";
-import { AdminUsers } from "@/components/admin/AdminUsers";
-import { AdminContent } from "@/components/admin/AdminContent";
-import { AdminSettings } from "@/components/admin/AdminSettings";
+import React, { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AdminStats from '@/components/admin/AdminStats';
+import AdminUsers from '@/components/admin/AdminUsers';
+import AdminContent from '@/components/admin/AdminContent';
+import AdminSettings from '@/components/admin/AdminSettings';
+import PageTransition from '@/components/layout/PageTransition';
+import Header from '@/components/layout/Header';
 import { useRequireAuth } from '@/hooks/use-auth-route';
 
 const AdminPage = () => {
   const { user, isLoading } = useRequireAuth();
   const [activeTab, setActiveTab] = useState("overview");
 
-  // Check if user is admin
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -22,7 +20,6 @@ const AdminPage = () => {
     );
   }
 
-  // Check if user has admin role
   if (user?.role !== "Admin") {
     return (
       <PageTransition>
