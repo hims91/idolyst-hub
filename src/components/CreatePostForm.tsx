@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ImagePlus, X, Loader2 } from 'lucide-react';
+import { ImagePlus, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,7 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const form = useForm<PostFormValues>({
     resolver: zodResolver(postFormSchema),
@@ -119,6 +120,7 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
       // Reset form
       form.reset();
       removeImage();
+      setIsExpanded(false);
       
       if (onSuccess) {
         onSuccess();
@@ -136,11 +138,64 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
 
   if (!user) {
     return (
-      <div className="rounded-lg border p-4 bg-muted/10 text-center">
+      <div className="rounded-lg border p-4 bg-muted/10 text-center mb-6">
         <p className="text-muted-foreground">
           Please sign in to create a post.
         </p>
       </div>
+    );
+  }
+
+  // Mobile-friendly collapsed view
+  if (!isExpanded) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-card rounded-lg border shadow-sm overflow-hidden mb-6"
+      >
+        <div className="p-4">
+          <div className="flex items-center space-x-3 mb-2">
+            <UserAvatar name={user.name} src={user.avatar} size="sm" />
+            <Button 
+              variant="ghost" 
+              className="text-muted-foreground text-sm h-auto py-2 px-3 justify-start flex-grow text-left font-normal rounded-md hover:bg-muted/50"
+              onClick={() => setIsExpanded(true)}
+            >
+              What's on your mind?
+            </Button>
+          </div>
+          <div className="flex justify-between pt-2 border-t">
+            <Button 
+              type="button" 
+              variant="ghost"
+              size="sm" 
+              className="text-muted-foreground"
+              onClick={() => {
+                document.getElementById('image-upload')?.click();
+                setIsExpanded(true);
+              }}
+            >
+              <ImagePlus className="h-4 w-4 mr-2" />
+              Image
+              <input
+                id="image-upload"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageChange}
+              />
+            </Button>
+            <Button
+              size="sm"
+              type="button"
+              onClick={() => setIsExpanded(true)}
+            >
+              Create Post
+            </Button>
+          </div>
+        </div>
+      </motion.div>
     );
   }
 
@@ -151,9 +206,19 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
       className="bg-card rounded-lg border shadow-sm overflow-hidden mb-6"
     >
       <div className="p-4">
-        <div className="flex items-center space-x-3 mb-4">
-          <UserAvatar name={user.name} src={user.avatar} size="sm" />
-          <div className="font-medium">{user.name}</div>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-3">
+            <UserAvatar name={user.name} src={user.avatar} size="sm" />
+            <div className="font-medium">{user.name}</div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => setIsExpanded(false)}
+          >
+            <ChevronUp className="h-4 w-4" />
+          </Button>
         </div>
 
         <Form {...form}>
@@ -211,7 +276,7 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
               </div>
             )}
 
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
               <FormField
                 control={form.control}
                 name="category"
@@ -275,14 +340,24 @@ const CreatePostForm: React.FC<CreatePostFormProps> = ({ onSuccess }) => {
                 />
               </Button>
 
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Publishing...
-                  </>
-                ) : 'Publish'}
-              </Button>
+              <div className="flex space-x-2">
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setIsExpanded(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Publishing...
+                    </>
+                  ) : 'Publish'}
+                </Button>
+              </div>
             </div>
           </form>
         </Form>

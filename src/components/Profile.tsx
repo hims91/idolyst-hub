@@ -1,297 +1,318 @@
 
 import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { motion } from 'framer-motion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import UserAvatar from './ui/UserAvatar';
-import { PostData } from './ui/PostCard';
-import { CampaignData } from './ui/CrowdfundingCard';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import UserAvatar from '@/components/ui/UserAvatar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/context/AuthContext';
 import PostCard from './ui/PostCard';
-import CrowdfundingCard from './ui/CrowdfundingCard';
-import { useQuery } from '@tanstack/react-query';
-import { apiService } from '@/services/api';
-import { 
-  User, Mail, MapPin, Link as LinkIcon, 
-  Edit, Users, Calendar, Award, Rocket, 
-  BarChart3, MessageSquare, FileText
-} from 'lucide-react';
 
-// Mock posts by user
-const MOCK_USER_POSTS: PostData[] = [
+// Mock user posts for profile
+const userPosts = [
   {
-    id: 'post-1',
-    title: 'Five lessons I learned raising our Series A',
-    content: "After three months of pitching to VCs, we've successfully closed our Series A round. Here are the five most important lessons I learned along the way that might help other founders on the same journey...",
+    id: '1',
+    title: 'My first startup journey',
+    content: 'This is my experience launching my first startup...',
     author: {
-      id: "user-1",
-      name: 'Alex Johnson',
-      role: 'Founder & CEO',
-      avatar: '/images/avatars/alex.jpg'
+      id: '1',
+      name: 'Demo User',
+      role: 'Startup Founder',
+      avatar: 'https://ui-avatars.com/api/?name=Demo+User',
     },
-    category: 'Founder Advice',
-    upvotes: 89,
+    category: 'Startup News',
+    upvotes: 24,
     downvotes: 2,
-    commentCount: 14,
+    commentCount: 8,
     timeAgo: '2d ago',
+    createdAt: new Date().toISOString(),
+    tags: ['startup', 'journey', 'experience'],
   },
   {
-    id: 'post-2',
-    title: 'Product-market fit: How we found ours in an unexpected place',
-    content: "We started building for enterprise customers, but discovered our product actually solved a bigger pain point for mid-market companies. Here's how we identified the shift and quickly pivoted our go-to-market strategy...",
+    id: '2',
+    title: 'How I secured my first funding',
+    content: 'After months of pitching, I finally secured my first funding round...',
     author: {
-      id: "user-1",
-      name: 'Alex Johnson',
-      role: 'Founder & CEO',
-      avatar: '/images/avatars/alex.jpg'
+      id: '1',
+      name: 'Demo User',
+      role: 'Startup Founder',
+      avatar: 'https://ui-avatars.com/api/?name=Demo+User',
     },
-    category: 'Product Development',
-    upvotes: 124,
-    downvotes: 5,
-    commentCount: 21,
-    timeAgo: '1w ago',
+    category: 'Funding Updates',
+    upvotes: 42,
+    downvotes: 0,
+    commentCount: 15,
+    timeAgo: '5d ago',
+    createdAt: new Date().toISOString(),
+    tags: ['funding', 'venture-capital', 'pitching'],
   },
 ];
 
-// Mock campaigns by user
-const MOCK_USER_CAMPAIGNS: CampaignData[] = [
+// Mock user investments for profile
+const userInvestments = [
   {
-    id: 'campaign-1',
-    title: 'TechNova Solutions: AI-powered growth platform for startups',
-    shortDescription: 'Smart growth platform for startups using AI',
-    description: "TechNova is building an all-in-one growth platform for early stage startups. Using AI algorithms, we analyze market data and user behavior to provide actionable growth strategies tailored to each startup's unique position.",
-    founders: [
-      {
-        id: "user-1",
-        name: 'Alex Johnson',
-        role: 'Founder & CEO',
-        avatar: '/images/avatars/alex.jpg'
-      }
-    ],
-    category: 'SaaS',
-    tags: ['AI', 'Analytics', 'Growth', 'Startup Tools'],
-    raisedAmount: 580000,
-    goalAmount: 750000,
-    investorCount: 94,
-    daysLeft: 15,
-    timeline: [
-      { name: 'Week 1', value: 150000 },
-      { name: 'Week 2', value: 280000 },
-      { name: 'Week 3', value: 390000 },
-      { name: 'Week 4', value: 490000 },
-      { name: 'Week 5', value: 580000 },
-    ],
-    featured: true,
+    id: 'inv-1',
+    name: 'TechStart Inc',
+    amount: '$25,000',
+    date: '2023-02-15',
+    type: 'Seed',
+    status: 'Active',
+  },
+  {
+    id: 'inv-2',
+    name: 'Green Energy Solutions',
+    amount: '$50,000',
+    date: '2023-05-22',
+    type: 'Series A',
+    status: 'Active',
   },
 ];
 
-// Create a mock profile user with all the required fields
-const mockProfileUser = {
-  id: 'user-1',
-  name: 'Alex Johnson',
-  role: 'Founder & CEO',
-  avatar: '/images/avatars/alex.jpg',
-  email: 'alex@technova.io',
-  company: 'TechNova Solutions',
-  bio: 'Serial entrepreneur with 10+ years experience in SaaS and AI. Previously founded and sold two startups in the analytics space. Currently building the next generation of growth tools for early-stage companies.',
-  location: 'San Francisco, CA',
-  website: 'technova.io',
-  joinDate: 'Jan 2023',
-  badges: [
-    { id: 'badge-1', name: 'Verified Founder', icon: 'user' },
-    { id: 'badge-2', name: 'Top Contributor', icon: 'award' },
-    { id: 'badge-3', name: 'Angel Investor', icon: 'rocket' }
-  ],
-  skills: ['AI/ML', 'Growth Strategy', 'Fundraising', 'Product Development', 'SaaS'],
-  followers: 1420,
-  following: 358,
-  posts: 47,
-  startups: 3,
-  investments: 12,
-};
-
-const Profile: React.FC = () => {
-  const [isFollowing, setIsFollowing] = useState(false);
-  
-  // Updated to use our mock user instead of an API call
-  const { data: user, isLoading } = useQuery({
-    queryKey: ['profile', 'user-1'],
-    queryFn: () => Promise.resolve(mockProfileUser),
+const Profile = () => {
+  const { user } = useAuth();
+  const [isEditing, setIsEditing] = useState(false);
+  const [profile, setProfile] = useState({
+    name: user?.name || 'Demo User',
+    role: user?.role || 'Startup Founder',
+    bio: user?.bio || 'Passionate entrepreneur dedicated to creating innovative solutions for everyday problems.',
+    location: user?.location || 'San Francisco, CA',
+    website: user?.website || 'https://example.com',
+    email: user?.email || 'demo@example.com',
   });
   
-  const toggleFollow = () => {
-    setIsFollowing(!isFollowing);
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setProfile(prev => ({ ...prev, [name]: value }));
   };
   
-  if (isLoading || !user) {
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center animate-pulse">
-              <div className="h-24 w-24 rounded-full bg-gray-200 mb-4 md:mb-0 md:mr-6"></div>
-              <div className="flex-1 space-y-3">
-                <div className="h-6 bg-gray-200 rounded w-1/3"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                <div className="h-4 bg-gray-200 rounded w-2/3"></div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const handleSave = () => {
+    // In a real app, we would send this to the server
+    setIsEditing(false);
+  };
   
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center">
-            <UserAvatar name={user.name} src={user.avatar} size="lg" className="h-24 w-24 mb-4 md:mb-0 md:mr-6" />
+    <div className="space-y-8">
+      <Card className="overflow-hidden">
+        <div className="relative h-40 bg-gradient-to-r from-blue-500 to-purple-500">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="absolute right-4 top-4"
+            onClick={() => setIsEditing(!isEditing)}
+          >
+            {isEditing ? 'Cancel' : 'Edit Profile'}
+          </Button>
+        </div>
+        
+        <div className="relative px-6">
+          <div className="flex flex-col md:flex-row gap-6 items-start md:items-end -mt-12">
+            <UserAvatar 
+              name={profile.name} 
+              src={user?.avatar}
+              size="xl"
+              className="border-4 border-background relative"
+            />
             
-            <div className="flex-1">
-              <div className="flex flex-col md:flex-row md:items-center justify-between mb-4">
+            <div className="space-y-1 flex-1 pt-4 md:pt-0">
+              {isEditing ? (
+                <Input 
+                  name="name"
+                  value={profile.name}
+                  onChange={handleChange}
+                  className="text-xl h-10 font-semibold"
+                />
+              ) : (
+                <h2 className="text-2xl md:text-3xl font-bold">{profile.name}</h2>
+              )}
+              
+              {isEditing ? (
+                <Input 
+                  name="role"
+                  value={profile.role}
+                  onChange={handleChange}
+                  className="text-muted-foreground"
+                />
+              ) : (
+                <p className="text-muted-foreground">{profile.role}</p>
+              )}
+            </div>
+            
+            {isEditing && (
+              <Button onClick={handleSave}>Save Changes</Button>
+            )}
+          </div>
+        </div>
+        
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-2 space-y-4">
+              <div>
+                <h3 className="font-medium mb-2">Bio</h3>
+                {isEditing ? (
+                  <Textarea 
+                    name="bio"
+                    value={profile.bio}
+                    onChange={handleChange}
+                    className="min-h-[100px]"
+                  />
+                ) : (
+                  <p className="text-muted-foreground">{profile.bio}</p>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <h1 className="text-2xl font-bold">{user.name}</h1>
-                  <p className="text-muted-foreground">@{user.name.toLowerCase().replace(' ', '')} • {user.role} at {user.company}</p>
+                  <h3 className="font-medium mb-2">Location</h3>
+                  {isEditing ? (
+                    <Input 
+                      name="location"
+                      value={profile.location}
+                      onChange={handleChange}
+                    />
+                  ) : (
+                    <p className="text-muted-foreground">{profile.location}</p>
+                  )}
                 </div>
                 
-                <div className="mt-4 md:mt-0 flex space-x-3">
-                  <Button variant="outline" size="sm" onClick={toggleFollow}>
-                    {isFollowing ? 'Following' : 'Follow'}
-                  </Button>
-                  <Button size="sm" variant="default">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Message
-                  </Button>
+                <div>
+                  <h3 className="font-medium mb-2">Website</h3>
+                  {isEditing ? (
+                    <Input 
+                      name="website"
+                      value={profile.website}
+                      onChange={handleChange}
+                    />
+                  ) : (
+                    <a 
+                      href={profile.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {profile.website}
+                    </a>
+                  )}
                 </div>
               </div>
-              
-              <p className="mb-4">{user.bio}</p>
-              
-              <div className="flex flex-col sm:flex-row items-start sm:items-center text-sm text-muted-foreground space-y-2 sm:space-y-0 sm:space-x-4 mb-4">
-                <div className="flex items-center">
-                  <User className="h-4 w-4 mr-1 text-primary" />
-                  <span>{user.role}</span>
-                </div>
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-1 text-primary" />
-                  <span>{user.location}</span>
-                </div>
-                <div className="flex items-center">
-                  <LinkIcon className="h-4 w-4 mr-1 text-primary" />
-                  <a href={`https://${user.website}`} className="hover:text-primary">{user.website}</a>
-                </div>
-                <div className="flex items-center">
-                  <Mail className="h-4 w-4 mr-1 text-primary" />
-                  <a href={`mailto:${user.email}`} className="hover:text-primary">{user.email}</a>
-                </div>
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-1 text-primary" />
-                  <span>Joined {user.joinDate}</span>
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 mb-4">
-                {user.badges.map(badge => {
-                  const IconComponent = 
-                    badge.name === 'Top Contributor' ? Award :
-                    badge.name === 'Verified Founder' ? User :
-                    badge.name === 'Angel Investor' ? Rocket : Award;
-                  
-                  return (
-                    <div key={badge.id} className="flex items-center bg-secondary px-2 py-1 rounded-full text-xs">
-                      <IconComponent className="h-3 w-3 mr-1 text-primary" />
-                      {badge.name}
+            </div>
+            
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="py-4">
+                  <CardTitle className="text-base">Stats</CardTitle>
+                </CardHeader>
+                <CardContent className="py-2">
+                  <div className="grid grid-cols-2 gap-2 text-center">
+                    <div>
+                      <div className="text-2xl font-bold">42</div>
+                      <div className="text-xs text-muted-foreground">Posts</div>
                     </div>
-                  );
-                })}
-              </div>
-              
-              <div className="flex flex-wrap gap-2">
-                {user.skills.map((skill, index) => (
-                  <div key={index} className="bg-secondary/50 px-2 py-1 rounded-full text-xs">
-                    {skill}
+                    <div>
+                      <div className="text-2xl font-bold">3.8K</div>
+                      <div className="text-xs text-muted-foreground">Followers</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold">12</div>
+                      <div className="text-xs text-muted-foreground">Startups</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold">25</div>
+                      <div className="text-xs text-muted-foreground">Investments</div>
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mt-6 pt-6 border-t">
-            <div className="text-center">
-              <div className="font-semibold">{user.followers.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Followers</div>
-            </div>
-            <div className="text-center">
-              <div className="font-semibold">{user.following.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Following</div>
-            </div>
-            <div className="text-center">
-              <div className="font-semibold">{user.posts.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Posts</div>
-            </div>
-            <div className="text-center">
-              <div className="font-semibold">{user.startups.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Startups</div>
-            </div>
-            <div className="text-center">
-              <div className="font-semibold">{user.investments.toLocaleString()}</div>
-              <div className="text-sm text-muted-foreground">Investments</div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader className="py-4">
+                  <CardTitle className="text-base">Contact</CardTitle>
+                </CardHeader>
+                <CardContent className="py-2 space-y-2">
+                  <div>
+                    <div className="text-sm font-medium">Email</div>
+                    {isEditing ? (
+                      <Input 
+                        name="email"
+                        value={profile.email}
+                        onChange={handleChange}
+                        type="email"
+                      />
+                    ) : (
+                      <div className="text-sm text-muted-foreground">
+                        {profile.email}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </CardContent>
       </Card>
       
       <Tabs defaultValue="posts" className="w-full">
-        <TabsList className="grid grid-cols-4 mb-6">
-          <TabsTrigger value="posts" className="flex items-center">
-            <FileText className="h-4 w-4 mr-2" />
-            Posts
-          </TabsTrigger>
-          <TabsTrigger value="campaigns" className="flex items-center">
-            <Rocket className="h-4 w-4 mr-2" />
-            Campaigns
-          </TabsTrigger>
-          <TabsTrigger value="connections" className="flex items-center">
-            <Users className="h-4 w-4 mr-2" />
-            Network
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            Analytics
-          </TabsTrigger>
+        <TabsList className="flex w-full max-w-xs mx-auto bg-muted">
+          <TabsTrigger value="posts" className="flex-1">Posts</TabsTrigger>
+          <TabsTrigger value="investments" className="flex-1">Investments</TabsTrigger>
+          <TabsTrigger value="activity" className="flex-1">Activity</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="posts" className="space-y-4">
-          {MOCK_USER_POSTS.map(post => (
+        <TabsContent value="posts" className="mt-6 space-y-6">
+          {userPosts.map(post => (
             <PostCard key={post.id} post={post} />
           ))}
         </TabsContent>
         
-        <TabsContent value="campaigns" className="space-y-4">
-          {MOCK_USER_CAMPAIGNS.map(campaign => (
-            <CrowdfundingCard key={campaign.id} campaign={campaign} />
-          ))}
+        <TabsContent value="investments" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>My Investments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {userInvestments.map(investment => (
+                  <Card key={investment.id}>
+                    <CardHeader className="py-4">
+                      <CardTitle className="text-lg">{investment.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <div className="text-sm font-medium">Amount</div>
+                          <div className="text-base">{investment.amount}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium">Type</div>
+                          <div className="text-base">{investment.type}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium">Date</div>
+                          <div className="text-base">{new Date(investment.date).toLocaleDateString()}</div>
+                        </div>
+                        <div>
+                          <div className="text-sm font-medium">Status</div>
+                          <div className="text-base">{investment.status}</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
         
-        <TabsContent value="connections" className="p-4 bg-card rounded-lg border">
-          <div className="text-center py-8">
-            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-            <h3 className="text-lg font-semibold mb-2">Connections coming soon</h3>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              We're currently building the network features. Check back soon to see {user.name}'s professional connections.
-            </p>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="analytics" className="p-4 bg-card rounded-lg border">
-          <div className="text-center py-8">
-            <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-            <h3 className="text-lg font-semibold mb-2">Analytics coming soon</h3>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              Profile analytics will be available in the next release. This feature will show engagement metrics, content performance, and more.
-            </p>
-          </div>
+        <TabsContent value="activity" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">No recent activity to show.</p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

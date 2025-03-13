@@ -1,30 +1,5 @@
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar?: string;
-  bio?: string;
-  location?: string;
-  website?: string;
-  socialLinks?: {
-    twitter?: string;
-    linkedin?: string;
-    github?: string;
-  };
-}
-
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
-
-export interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-}
+import { LoginCredentials, RegisterData, User } from './api/types';
 
 export interface Comment {
   id: string;
@@ -63,7 +38,7 @@ const apiService = {
     throw new Error('Invalid credentials');
   },
   
-  socialLogin: async (provider: 'email' | 'google' | 'facebook'): Promise<User> => {
+  socialLogin: async (provider: 'google' | 'facebook' | 'twitter'): Promise<User> => {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     
@@ -159,7 +134,7 @@ const apiService = {
   },
   
   // Posts methods
-  getPosts: async (category?: string, page = 1, pageSize = 10): Promise<any[]> => {
+  getPosts: async (category?: string, page = 1, pageSize = 10, sortOrder: 'newest' | 'popular' = 'newest'): Promise<any[]> => {
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 800));
     
@@ -219,11 +194,19 @@ const apiService = {
       ? allPosts.filter(post => post.category === category)
       : allPosts;
     
+    // Sort posts
+    let sortedPosts = [...filteredPosts];
+    if (sortOrder === 'newest') {
+      sortedPosts.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (sortOrder === 'popular') {
+      sortedPosts.sort((a, b) => (b.upvotes - b.downvotes) - (a.upvotes - a.downvotes));
+    }
+    
     // Calculate pagination
     const start = (page - 1) * pageSize;
     const end = start + pageSize;
     
-    return filteredPosts.slice(start, end);
+    return sortedPosts.slice(start, end);
   },
   
   getLatestPosts: async (category?: string, limit = 3): Promise<any[]> => {

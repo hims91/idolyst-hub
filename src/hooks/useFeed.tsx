@@ -9,12 +9,14 @@ interface UseFeedOptions {
   category?: string;
   pageSize?: number;
   enableRealtime?: boolean;
+  sortOrder?: 'newest' | 'popular';
 }
 
 export function useFeed({ 
   category, 
   pageSize = 10, 
-  enableRealtime = true 
+  enableRealtime = true,
+  sortOrder = 'newest'
 }: UseFeedOptions = {}) {
   const { toast } = useToast();
   const [realtimeUpdates, setRealtimeUpdates] = useState<PostData[]>([]);
@@ -22,10 +24,10 @@ export function useFeed({
 
   // Fetch posts with infinite query
   const feedQuery = useInfiniteQuery({
-    queryKey: ['feed', category],
+    queryKey: ['feed', category, sortOrder],
     queryFn: async ({ pageParam = 1 }) => {
       try {
-        const response = await apiService.getPosts(category, pageParam, pageSize);
+        const response = await apiService.getPosts(category, pageParam, pageSize, sortOrder);
         return response;
       } catch (error) {
         console.error('Failed to fetch feed:', error);

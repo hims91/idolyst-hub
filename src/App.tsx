@@ -16,6 +16,8 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import CommunityPage from "./pages/CommunityPage";
+import AdminPage from "./pages/AdminPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,7 +40,7 @@ const App = () => (
               <Route
                 path="/*"
                 element={
-                  <div className="flex min-h-screen w-full">
+                  <div className="flex min-h-screen w-full flex-col md:flex-row">
                     <Sidebar />
                     <div className="flex-1 overflow-x-hidden">
                       <Routes>
@@ -46,6 +48,8 @@ const App = () => (
                         <Route path="/funding" element={<CrowdfundingPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
                         <Route path="/events" element={<EventsPage />} />
+                        <Route path="/community" element={<CommunityPage />} />
+                        <Route path="/admin" element={<AdminPage />} />
                         <Route path="*" element={<NotFound />} />
                       </Routes>
                     </div>
