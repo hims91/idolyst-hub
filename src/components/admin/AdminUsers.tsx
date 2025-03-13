@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminService } from '@/services/api/admin';
-import { AdminContentState } from '@/types/api';
+import { AdminContentState, AdminUser } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -19,7 +20,7 @@ export const AdminUsers = () => {
 
   const { data: usersData, isLoading } = useQuery({
     queryKey: ['admin', 'users', state],
-    queryFn: () => adminService.getAdminUsers(state),
+    queryFn: () => adminService.getAdminUsers(),
   });
 
   const handleStatusChange = async (userId: string, status: 'active' | 'suspended' | 'pending') => {
@@ -29,6 +30,13 @@ export const AdminUsers = () => {
   if (isLoading) {
     return <div>Loading users...</div>;
   }
+
+  const paginatedUsers = usersData ? {
+    items: usersData,
+    currentPage: 1,
+    totalPages: 1,
+    total: usersData.length
+  } : { items: [], currentPage: 1, totalPages: 1, total: 0 };
 
   return (
     <div className="space-y-6">
@@ -67,7 +75,7 @@ export const AdminUsers = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {usersData?.items.map(user => (
+          {paginatedUsers.items.map(user => (
             <TableRow key={user.id}>
               <TableCell>{user.id}</TableCell>
               <TableCell>{user.name}</TableCell>
@@ -83,10 +91,10 @@ export const AdminUsers = () => {
         </TableBody>
       </Table>
 
-      {usersData && (
+      {paginatedUsers && (
         <Pagination
-          currentPage={usersData.currentPage}
-          totalPages={usersData.totalPages}
+          currentPage={paginatedUsers.currentPage}
+          totalPages={paginatedUsers.totalPages}
           onPageChange={(page) => setState(prev => ({ ...prev, page }))}
         />
       )}

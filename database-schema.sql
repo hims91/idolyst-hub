@@ -1,273 +1,210 @@
 
--- Database Schema for Idolyst Application
-
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Database Schema for Founder Platform
 
 -- Users Table
 CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) NOT NULL UNIQUE,
+  email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL DEFAULT 'user',
-  avatar VARCHAR(255),
+  role VARCHAR(100) DEFAULT 'member',
+  avatar_url VARCHAR(255),
   bio TEXT,
+  company VARCHAR(255),
   location VARCHAR(255),
   website VARCHAR(255),
-  company VARCHAR(255),
-  join_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  join_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_login TIMESTAMP,
+  email_verified BOOLEAN DEFAULT FALSE,
+  status VARCHAR(50) DEFAULT 'active',
+  reset_token VARCHAR(255),
+  reset_token_expires TIMESTAMP
 );
 
--- Social Media Links
+-- User Social Links
 CREATE TABLE user_social_links (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  platform VARCHAR(50) NOT NULL,
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  platform VARCHAR(100) NOT NULL,
   url VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(user_id, platform)
 );
 
--- Categories Table
-CREATE TABLE categories (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(100) NOT NULL UNIQUE,
-  slug VARCHAR(100) NOT NULL UNIQUE,
-  description TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Tags Table
-CREATE TABLE tags (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(50) NOT NULL UNIQUE,
-  slug VARCHAR(50) NOT NULL UNIQUE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- User Skills
+CREATE TABLE user_skills (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  skill VARCHAR(100) NOT NULL,
+  UNIQUE(user_id, skill)
 );
 
 -- Posts Table
 CREATE TABLE posts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id SERIAL PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
   content TEXT NOT NULL,
-  author_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  category VARCHAR(100),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  status VARCHAR(50) DEFAULT 'published',
   image_url VARCHAR(255),
-  status VARCHAR(20) NOT NULL DEFAULT 'published',
-  published_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  upvotes INTEGER DEFAULT 0,
+  downvotes INTEGER DEFAULT 0,
+  view_count INTEGER DEFAULT 0
 );
 
--- Post Tags Junction Table
+-- Post Tags
 CREATE TABLE post_tags (
-  post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
-  tag_id UUID REFERENCES tags(id) ON DELETE CASCADE,
-  PRIMARY KEY (post_id, tag_id)
-);
-
--- Votes Table
-CREATE TABLE votes (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-  vote_type VARCHAR(10) NOT NULL CHECK (vote_type IN ('up', 'down')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(user_id, post_id)
+  id SERIAL PRIMARY KEY,
+  post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+  tag VARCHAR(100) NOT NULL,
+  UNIQUE(post_id, tag)
 );
 
 -- Comments Table
 CREATE TABLE comments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id SERIAL PRIMARY KEY,
   content TEXT NOT NULL,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-  parent_id UUID REFERENCES comments(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Comment Votes Table
-CREATE TABLE comment_votes (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
-  vote_type VARCHAR(10) NOT NULL CHECK (vote_type IN ('up', 'down')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(user_id, comment_id)
-);
-
--- Saved Posts Table
-CREATE TABLE saved_posts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(user_id, post_id)
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+  parent_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  upvotes INTEGER DEFAULT 0,
+  downvotes INTEGER DEFAULT 0
 );
 
 -- Events Table
 CREATE TABLE events (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id SERIAL PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
-  organizer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   location VARCHAR(255),
   is_virtual BOOLEAN DEFAULT FALSE,
-  start_time TIMESTAMP WITH TIME ZONE NOT NULL,
-  end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+  start_date TIMESTAMP NOT NULL,
+  end_date TIMESTAMP NOT NULL,
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
   image_url VARCHAR(255),
-  website VARCHAR(255),
+  status VARCHAR(50) DEFAULT 'upcoming',
   max_attendees INTEGER,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Event Attendees Junction Table
+-- Event Attendees
 CREATE TABLE event_attendees (
-  event_id UUID REFERENCES events(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  status VARCHAR(20) NOT NULL DEFAULT 'registered',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (event_id, user_id)
+  id SERIAL PRIMARY KEY,
+  event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(50) DEFAULT 'registered',
+  registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(event_id, user_id)
 );
 
--- Startups Table
-CREATE TABLE startups (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(255) NOT NULL,
-  founder_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+-- Crowdfunding Campaigns
+CREATE TABLE crowdfunding_campaigns (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
-  logo_url VARCHAR(255),
-  website VARCHAR(255),
-  founded_date DATE,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  goal_amount DECIMAL(12,2) NOT NULL,
+  current_amount DECIMAL(12,2) DEFAULT 0,
+  start_date TIMESTAMP NOT NULL,
+  end_date TIMESTAMP NOT NULL,
   status VARCHAR(50) DEFAULT 'active',
-  industry VARCHAR(100),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  category VARCHAR(100),
+  image_url VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Investments Table
-CREATE TABLE investments (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  startup_id UUID NOT NULL REFERENCES startups(id) ON DELETE CASCADE,
-  investor_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  amount DECIMAL(15, 2) NOT NULL,
-  investment_date DATE NOT NULL,
-  type VARCHAR(50) NOT NULL,
-  status VARCHAR(50) DEFAULT 'active',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- Campaign Updates
+CREATE TABLE campaign_updates (
+  id SERIAL PRIMARY KEY,
+  campaign_id INTEGER REFERENCES crowdfunding_campaigns(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Badges Table
-CREATE TABLE badges (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name VARCHAR(100) NOT NULL UNIQUE,
+-- Campaign Backers
+CREATE TABLE campaign_backers (
+  id SERIAL PRIMARY KEY,
+  campaign_id INTEGER REFERENCES crowdfunding_campaigns(id) ON DELETE CASCADE,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  amount DECIMAL(12,2) NOT NULL,
+  status VARCHAR(50) DEFAULT 'completed',
+  backed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  is_anonymous BOOLEAN DEFAULT FALSE
+);
+
+-- Rewards Table
+CREATE TABLE rewards (
+  id SERIAL PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
-  icon VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  points_required INTEGER NOT NULL,
+  icon VARCHAR(100),
+  category VARCHAR(100) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- User Badges Junction Table
-CREATE TABLE user_badges (
-  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  badge_id UUID REFERENCES badges(id) ON DELETE CASCADE,
-  awarded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (user_id, badge_id)
+-- User Rewards
+CREATE TABLE user_rewards (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  reward_id INTEGER REFERENCES rewards(id) ON DELETE CASCADE,
+  earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, reward_id)
 );
 
--- Followers Table
-CREATE TABLE followers (
-  follower_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  following_id UUID REFERENCES users(id) ON DELETE CASCADE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (follower_id, following_id),
-  CHECK (follower_id != following_id)
+-- User Points
+CREATE TABLE user_points (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  points INTEGER DEFAULT 0,
+  last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Point Transactions
+CREATE TABLE point_transactions (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  amount INTEGER NOT NULL,
+  description VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  transaction_type VARCHAR(50) NOT NULL
 );
 
 -- Notifications Table
 CREATE TABLE notifications (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  type VARCHAR(50) NOT NULL,
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
   content TEXT NOT NULL,
   is_read BOOLEAN DEFAULT FALSE,
-  related_id UUID,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  notification_type VARCHAR(100),
+  related_id INTEGER,
+  related_type VARCHAR(100)
 );
 
--- Settings Table
-CREATE TABLE user_settings (
-  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  email_notifications BOOLEAN DEFAULT TRUE,
-  marketing_emails BOOLEAN DEFAULT FALSE,
-  account_visibility VARCHAR(20) DEFAULT 'public',
-  two_factor_auth BOOLEAN DEFAULT FALSE,
-  theme VARCHAR(20) DEFAULT 'system',
-  language VARCHAR(10) DEFAULT 'en',
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+-- Create indexes for better query performance
+CREATE INDEX idx_posts_user_id ON posts(user_id);
+CREATE INDEX idx_posts_category ON posts(category);
+CREATE INDEX idx_posts_created_at ON posts(created_at);
 
--- Sessions Table for Auth
-CREATE TABLE sessions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  token VARCHAR(255) NOT NULL UNIQUE,
-  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  last_used_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Password Reset Tokens
-CREATE TABLE password_reset_tokens (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  token VARCHAR(255) NOT NULL UNIQUE,
-  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Insert some sample categories
-INSERT INTO categories (name, slug, description) VALUES
-('Startup News', 'startup-news', 'Latest news and updates from the startup world'),
-('Expert Opinions', 'expert-opinions', 'Insights and opinions from industry experts'),
-('Funding Updates', 'funding-updates', 'Recent funding rounds and investment news'),
-('Tech Trends', 'tech-trends', 'Emerging trends and technologies in the startup ecosystem'),
-('Product Launch', 'product-launch', 'New product launches and announcements');
-
--- Create sample users (password: 'password' for all)
-INSERT INTO users (name, email, password_hash, role, avatar, bio, location) VALUES
-('Admin User', 'admin@example.com', '$2a$10$mCnUB3BQA5XK9B5hCKpYPeR/H5aM6n3LZ1sAn1PnT9s08H/dYvS6S', 'admin', 'https://ui-avatars.com/api/?name=Admin+User', 'System administrator', 'San Francisco'),
-('Demo User', 'demo@example.com', '$2a$10$mCnUB3BQA5XK9B5hCKpYPeR/H5aM6n3LZ1sAn1PnT9s08H/dYvS6S', 'Startup Founder', 'https://ui-avatars.com/api/?name=Demo+User', 'Passionate entrepreneur dedicated to creating innovative solutions', 'New York'),
-('Investor User', 'investor@example.com', '$2a$10$mCnUB3BQA5XK9B5hCKpYPeR/H5aM6n3LZ1sAn1PnT9s08H/dYvS6S', 'Investor', 'https://ui-avatars.com/api/?name=Investor+User', 'Angel investor looking for promising startups', 'Boston'),
-('Mentor User', 'mentor@example.com', '$2a$10$mCnUB3BQA5XK9B5hCKpYPeR/H5aM6n3LZ1sAn1PnT9s08H/dYvS6S', 'Mentor', 'https://ui-avatars.com/api/?name=Mentor+User', 'Experienced founder helping the next generation', 'Austin');
-
--- Create sample tags
-INSERT INTO tags (name, slug) VALUES
-('funding', 'funding'),
-('ai', 'ai'),
-('saas', 'saas'),
-('fintech', 'fintech'),
-('startup', 'startup'),
-('venture-capital', 'venture-capital'),
-('product', 'product'),
-('launch', 'launch'),
-('technology', 'technology'),
-('innovation', 'innovation');
-
--- Create indexes for performance
-CREATE INDEX idx_posts_author_id ON posts(author_id);
-CREATE INDEX idx_posts_category_id ON posts(category_id);
 CREATE INDEX idx_comments_post_id ON comments(post_id);
 CREATE INDEX idx_comments_user_id ON comments(user_id);
-CREATE INDEX idx_votes_post_id ON votes(post_id);
-CREATE INDEX idx_votes_user_id ON votes(user_id);
-CREATE INDEX idx_followers_follower_id ON followers(follower_id);
-CREATE INDEX idx_followers_following_id ON followers(following_id);
+
+CREATE INDEX idx_events_start_date ON events(start_date);
+CREATE INDEX idx_events_status ON events(status);
+
+CREATE INDEX idx_campaigns_user_id ON crowdfunding_campaigns(user_id);
+CREATE INDEX idx_campaigns_status ON crowdfunding_campaigns(status);
+CREATE INDEX idx_campaigns_category ON crowdfunding_campaigns(category);
+
+CREATE INDEX idx_user_rewards_user_id ON user_rewards(user_id);
 CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX idx_notifications_is_read ON notifications(is_read);

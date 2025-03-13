@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from '@/components/layout/Header';
 import PageTransition from '@/components/layout/PageTransition';
-import { CommunitySection } from '@/components/community/CommunitySection';
+import CommunitySection from '@/components/community/CommunitySection';
 
 const CommunityPage = () => {
   const [activeTab, setActiveTab] = useState('discussions');

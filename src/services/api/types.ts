@@ -17,6 +17,12 @@ export interface User {
   posts?: number;
   startups?: number;
   investments?: number;
+  socialLinks?: {
+    twitter?: string;
+    linkedin?: string;
+    github?: string;
+    website?: string;
+  };
 }
 
 export interface LoginCredentials {
@@ -60,4 +66,41 @@ export interface PaginationProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  currentPage: number;
+  totalPages: number;
+  total: number;
+}
+
+export interface AdminContentState {
+  page: number;
+  search: string;
+  status: 'all' | 'active' | 'pending' | 'rejected' | 'suspended';
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+}
+
+export interface AdminPost {
+  id: string;
+  title: string;
+  author: {
+    id: string;
+    name: string;
+  };
+  category: string;
+  status: string;
+  comments: number;
+  published: string;
+}
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  createdAt: string;
 }

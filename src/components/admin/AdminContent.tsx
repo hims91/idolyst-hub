@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { adminService } from '@/services/api/admin';
-import { AdminContentState } from '@/types/api';
+import { AdminContentState, PaginatedResponse, AdminPost } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -19,7 +20,7 @@ export const AdminContent = () => {
 
   const { data: postsData, isLoading: postsLoading } = useQuery({
     queryKey: ['admin', 'posts', state],
-    queryFn: () => adminService.getAdminPosts(state),
+    queryFn: () => adminService.getAdminPosts(),
   });
 
   const handleStatusChange = async (postId: string, status: string) => {
@@ -33,6 +34,13 @@ export const AdminContent = () => {
   if (postsLoading) {
     return <div>Loading...</div>;
   }
+
+  const paginatedPosts = postsData ? {
+    items: postsData,
+    currentPage: 1,
+    totalPages: 1,
+    total: postsData.length
+  } : { items: [], currentPage: 1, totalPages: 1, total: 0 };
 
   return (
     <div className="space-y-6">
@@ -64,10 +72,10 @@ export const AdminContent = () => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {postsData?.items.map(post => (
+          {paginatedPosts.items.map(post => (
             <TableRow key={post.id}>
               <TableCell>{post.title}</TableCell>
-              <TableCell>{post.author.name}</TableCell>
+              <TableCell>{typeof post.author === 'string' ? post.author : post.author.name}</TableCell>
               <TableCell>{post.category}</TableCell>
               <TableCell>{post.status}</TableCell>
               <TableCell>
@@ -80,10 +88,10 @@ export const AdminContent = () => {
         </TableBody>
       </Table>
 
-      {postsData && (
+      {paginatedPosts && (
         <Pagination
-          currentPage={postsData.currentPage}
-          totalPages={postsData.totalPages}
+          currentPage={paginatedPosts.currentPage}
+          totalPages={paginatedPosts.totalPages}
           onPageChange={(page) => setState(prev => ({ ...prev, page }))}
         />
       )}
