@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   name: string;
@@ -209,4 +208,11 @@ export interface LeaderboardUser {
   points: number;
   rank: number;
   badges: number;
+}
+
+export interface EmailSettingsForm {
+  marketingEmails: boolean;
+  notificationEmails: boolean;
+  weeklyDigest: boolean;
+  newFollowerAlert: boolean;
 }

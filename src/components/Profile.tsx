@@ -111,7 +111,7 @@ const Profile = () => {
             <UserAvatar 
               name={profile.name} 
               src={user?.avatar}
-              size="xl"
+              size="lg" // Changed from "xl" to "lg" to match allowed types
               className="border-4 border-background relative"
             />
             

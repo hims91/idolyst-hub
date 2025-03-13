@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   name: string;
@@ -28,6 +27,7 @@ export interface User {
   isFollowing?: boolean;
 }
 
+// Export these types for use in other components
 export interface LoginCredentials {
   email: string;
   password: string;
