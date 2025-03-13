@@ -23,6 +23,9 @@ export interface User {
     github?: string;
     website?: string;
   };
+  status?: string;
+  emailVerified?: boolean;
+  isFollowing?: boolean;
 }
 
 export interface LoginCredentials {
@@ -34,6 +37,17 @@ export interface RegisterData {
   name: string;
   email: string;
   password: string;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface AuthResponse {
+  user: User;
+  tokens: AuthTokens;
+  message?: string;
 }
 
 export interface AdminStats {
@@ -89,7 +103,7 @@ export interface AdminPost {
   author: {
     id: string;
     name: string;
-  };
+  } | string;
   category: string;
   status: string;
   comments: number;
@@ -103,4 +117,40 @@ export interface AdminUser {
   role: string;
   status: string;
   createdAt: string;
+}
+
+export interface EmailSettingsForm {
+  marketingEmails: boolean;
+  notificationEmails: boolean;
+  weeklyDigest: boolean;
+  newFollowerAlert: boolean;
+}
+
+export interface UserProfileUpdateData {
+  name?: string;
+  bio?: string;
+  company?: string;
+  location?: string;
+  website?: string;
+  skills?: string[];
+  socialLinks?: {
+    twitter?: string;
+    linkedin?: string;
+    github?: string;
+    website?: string;
+  };
+}
+
+export interface PasswordChangeData {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export interface PasswordResetRequestData {
+  email: string;
+}
+
+export interface PasswordResetData {
+  token: string;
+  password: string;
 }
