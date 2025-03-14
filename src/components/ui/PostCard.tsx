@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUp, ArrowDown, MessageSquare, Share2, MoreHorizontal, Bookmark, BookmarkCheck, ThumbsUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -46,6 +47,7 @@ interface PostCardProps {
 }
 
 const PostCard: React.FC<PostCardProps> = ({ post }) => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const [votes, setVotes] = useState({ up: post.upvotes, down: post.downvotes });
@@ -140,17 +142,41 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
     }
   };
 
+  const navigateToPost = (e: React.MouseEvent) => {
+    // Don't navigate if the click was on a button or link
+    const target = e.target as HTMLElement;
+    if (
+      target.tagName === 'BUTTON' ||
+      target.tagName === 'A' ||
+      target.closest('button') ||
+      target.closest('a')
+    ) {
+      return;
+    }
+    
+    navigate(`/post/${post.id}`);
+  };
+
+  const navigateToUserProfile = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/user/${post.author.id}`);
+  };
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="bg-card rounded-lg border shadow-sm overflow-hidden"
+      className="bg-card rounded-lg border shadow-sm overflow-hidden cursor-pointer"
+      onClick={navigateToPost}
     >
       <div className="p-5">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-3">
+          <div 
+            className="flex items-center space-x-3 cursor-pointer"
+            onClick={navigateToUserProfile}
+          >
             <UserAvatar name={post.author.name} src={post.author.avatar} size="md" />
             <div>
               <div className="font-medium">{post.author.name}</div>
@@ -180,15 +206,15 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={toggleSaved}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toggleSaved(); }}>
                   {saved ? <BookmarkCheck className="mr-2 h-4 w-4" /> : <Bookmark className="mr-2 h-4 w-4" />}
                   {saved ? 'Unsave post' : 'Save post'}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleShare}>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleShare(); }}>
                   <Share2 className="mr-2 h-4 w-4" />
                   Share post
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigateToUserProfile(e); }}>
                   <ThumbsUp className="mr-2 h-4 w-4" />
                   Follow author
                 </DropdownMenuItem>
@@ -216,7 +242,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
               <Button 
                 variant="link" 
                 size="sm" 
-                onClick={() => setIsExpanded(true)}
+                onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
                 className="p-0 h-auto text-primary font-normal"
               >
                 Show more
@@ -230,7 +256,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
             <Button 
               variant="link" 
               size="sm" 
-              onClick={() => setIsExpanded(false)}
+              onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
               className="p-0 h-auto text-primary font-normal mt-1"
             >
               Show less
@@ -260,7 +286,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                       "px-2 h-8",
                       voteStatus === 'up' && "text-green-600 dark:text-green-500 font-medium"
                     )}
-                    onClick={() => handleVote('up')}
+                    onClick={(e) => { e.stopPropagation(); handleVote('up'); }}
                   >
                     <ArrowUp className="h-4 w-4 mr-1" />
                     <span>{votes.up}</span>
@@ -278,7 +304,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                       "px-2 h-8",
                       voteStatus === 'down' && "text-red-600 dark:text-red-500 font-medium"
                     )}
-                    onClick={() => handleVote('down')}
+                    onClick={(e) => { e.stopPropagation(); handleVote('down'); }}
                   >
                     <ArrowDown className="h-4 w-4 mr-1" />
                     <span>{votes.down}</span>
@@ -297,7 +323,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                     "px-2 h-8",
                     showComments && "text-primary font-medium"
                   )}
-                  onClick={toggleComments}
+                  onClick={(e) => { e.stopPropagation(); toggleComments(); }}
                 >
                   <MessageSquare className="h-4 w-4 mr-1" />
                   <span>{commentCount}</span>
@@ -316,7 +342,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                   variant="ghost" 
                   size="sm" 
                   className="h-8 w-8 p-0"
-                  onClick={handleShare}
+                  onClick={(e) => { e.stopPropagation(); handleShare(); }}
                 >
                   <Share2 className="h-4 w-4" />
                 </Button>
@@ -333,7 +359,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
                     "h-8 w-8 p-0",
                     saved && "text-primary"
                   )}
-                  onClick={toggleSaved}
+                  onClick={(e) => { e.stopPropagation(); toggleSaved(); }}
                 >
                   {saved ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
                 </Button>
@@ -353,6 +379,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3 }}
             className="border-t bg-muted/30"
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="p-4">
               <CommentSection 

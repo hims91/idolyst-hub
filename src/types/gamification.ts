@@ -24,6 +24,8 @@ export interface Challenge {
   startDate?: string;
   endDate?: string;
   isActive: boolean;
+  participants?: number;
+  completions?: number;
 }
 
 export interface UserChallenge {

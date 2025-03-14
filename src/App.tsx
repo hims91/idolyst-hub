@@ -11,6 +11,8 @@ import NotFound from "./pages/NotFound";
 import Sidebar from "./components/layout/Sidebar";
 import CrowdfundingPage from "./pages/Crowdfunding";
 import ProfilePage from "./pages/ProfilePage";
+import UserProfilePage from "./pages/UserProfilePage";
+import PostDetailPage from "./pages/PostDetailPage";
 import EventsPage from "./pages/EventsPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -47,6 +49,8 @@ const App = () => (
                         <Route path="/" element={<Index />} />
                         <Route path="/funding" element={<CrowdfundingPage />} />
                         <Route path="/profile" element={<ProfilePage />} />
+                        <Route path="/user/:userId" element={<UserProfilePage />} />
+                        <Route path="/post/:postId" element={<PostDetailPage />} />
                         <Route path="/events" element={<EventsPage />} />
                         <Route path="/community" element={<CommunityPage />} />
                         <Route path="/admin" element={<AdminPage />} />

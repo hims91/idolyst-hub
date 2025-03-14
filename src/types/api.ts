@@ -1,5 +1,5 @@
 
-import { Badge, LeaderboardEntry } from './gamification';
+import { Badge, Challenge, LeaderboardEntry, UserBadge, UserChallenge } from './gamification';
 
 // General API response types
 export interface ApiResponse<T> {
@@ -136,4 +136,80 @@ export interface NotificationSettingsForm {
   notificationEmails: boolean;
   weeklyDigest: boolean;
   newFollowerAlert: boolean;
+}
+
+// Post and feed types
+export interface Post {
+  id: string;
+  title: string;
+  content: string;
+  author: {
+    id: string;
+    name: string;
+    avatar?: string;
+    role: string;
+  };
+  category: string;
+  upvotes: number;
+  downvotes: number;
+  commentCount: number;
+  timeAgo: string;
+  createdAt: string;
+  tags?: string[];
+  imageUrl?: string;
+  status?: string;
+  comments?: Comment[];
+}
+
+export interface Comment {
+  id: string;
+  content: string;
+  author: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  createdAt: string;
+  timeAgo: string;
+  upvotes: number;
+  downvotes: number;
+  replies?: Comment[];
+}
+
+// User profile types
+export interface ProfileData {
+  id: string;
+  name: string;
+  role: string;
+  avatar?: string;
+  bio?: string;
+  company?: string;
+  location?: string;
+  website?: string;
+  joinDate: string;
+  followers: number;
+  following: number;
+  posts: number;
+  socialLinks: Record<string, string>;
+  skills: string[];
+  badges: Badge[];
+  isFollowing?: boolean;
+}
+
+// Single post view
+export interface PostDetail extends Post {
+  views: number;
+  shares: number;
+  isSaved: boolean;
+  isVoted: 'up' | 'down' | null;
+}
+
+// User connections
+export interface UserConnection {
+  id: string;
+  name: string;
+  role: string;
+  avatar?: string;
+  company?: string;
+  isFollowing?: boolean;
 }
