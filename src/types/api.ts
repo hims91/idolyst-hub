@@ -1,30 +1,21 @@
-export interface User {
-  id: string;
-  name: string;
-  role: string;
-  avatar?: string;
-  email: string;
-  company?: string;
-  bio?: string;
-  location?: string;
-  website?: string;
-  joinDate?: string;
-  badges?: Array<{ id: string; name: string; icon: string }>;
-  skills?: string[];
-  followers?: number;
-  following?: number;
-  posts?: number;
-  startups?: number;
-  investments?: number;
-  socialLinks?: {
-    twitter?: string;
-    linkedin?: string;
-    github?: string;
-    website?: string;
-  };
-  status?: string;
+
+import { Badge, LeaderboardEntry } from './gamification';
+
+// General API response types
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
 }
 
+export interface PaginatedResponse<T> {
+  items: T[];
+  currentPage: number;
+  totalPages: number;
+  total: number;
+}
+
+// Auth types
 export interface LoginCredentials {
   email: string;
   password: string;
@@ -36,75 +27,40 @@ export interface RegisterData {
   password: string;
 }
 
-export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
-}
-
 export interface AuthResponse {
   user: User;
-  tokens: AuthTokens;
-  message?: string;
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+  };
 }
 
-export interface AdminStats {
-  users: number;
-  posts: number;
-  comments: number;
-  events: number;
-  summaryCards: Array<{
-    title: string;
-    value: number;
-    change: number;
-    trend: 'up' | 'down';
-  }>;
-  userActivity: Array<{
-    date: string;
-    active: number;
-    new: number;
-  }>;
-  contentDistribution: Array<{
-    type: string;
-    value: number;
-  }>;
-  monthlyRevenue: Array<{
-    month: string;
-    revenue: number;
-  }>;
-}
-
-export interface PaginationProps {
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
-}
-
-export interface PaginatedResponse<T> {
-  items: T[];
-  currentPage: number;
-  totalPages: number;
-  total: number;
-}
-
-export interface AdminContentState {
-  page: number;
-  search: string;
-  status: 'all' | 'active' | 'pending' | 'rejected' | 'suspended';
-  sortBy: string;
-  sortOrder: 'asc' | 'desc';
-}
-
-export interface AdminPost {
+export interface User {
   id: string;
-  title: string;
-  author: {
-    id: string;
-    name: string;
-  } | string;
-  category: string;
-  status: string;
-  comments: number;
-  published: string;
+  name: string;
+  email: string;
+  role: string;
+  avatar?: string;
+  bio?: string;
+  joinDate?: string;
+  emailVerified?: boolean;
+  company?: string;
+  location?: string;
+  website?: string;
+  socialLinks?: Record<string, string>;
+  skills?: string[];
+  badges?: Badge[];
+}
+
+// Admin types
+export interface AdminUserFilter {
+  query?: string;
+  role?: string;
+  status?: string;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
 }
 
 export interface AdminUser {
@@ -112,115 +68,58 @@ export interface AdminUser {
   name: string;
   email: string;
   role: string;
-  status: string;
-  createdAt: string;
-}
-
-export interface Comment {
-  id: string;
-  content: string;
-  author: {
-    id: string;
-    name: string;
-    avatar?: string;
-    role: string;
-  };
-  createdAt: string;
-  timeAgo: string;
-  upvotes: number;
-  downvotes: number;
-  replies: Comment[];
-}
-
-export interface Post {
-  id: string;
-  title: string;
-  content: string;
-  author: {
-    id: string;
-    name: string;
-    avatar?: string;
-    role: string;
-  };
-  category: string;
-  upvotes: number;
-  downvotes: number;
-  commentCount: number;
-  timeAgo: string;
-  createdAt: string;
-  tags: string[];
-  imageUrl?: string;
-  status: string;
-  comments: Comment[];
-}
-
-export interface Event {
-  id: string;
-  title: string;
-  description: string;
-  location: string;
-  isVirtual: boolean;
-  startDate: string;
-  endDate: string;
-  organizer: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-  attendees: number;
-  maxAttendees?: number;
-  imageUrl?: string;
-  status: 'upcoming' | 'ongoing' | 'past' | 'canceled';
-}
-
-export interface CrowdfundingCampaign {
-  id: string;
-  title: string;
-  description: string;
-  creator: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
-  goalAmount: number;
-  currentAmount: number;
-  backers: number;
-  startDate: string;
-  endDate: string;
-  status: 'active' | 'funded' | 'ended' | 'canceled';
-  category: string;
-  imageUrl?: string;
-  progress: number;
-}
-
-export interface Reward {
-  id: string;
-  title: string;
-  description: string;
-  points: number;
-  icon: string;
-  category: 'achievement' | 'badge' | 'perk';
-  unlocked?: boolean;
-  progress?: number;
-}
-
-export interface UserBadge {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  dateEarned: string;
-}
-
-export interface LeaderboardUser {
-  id: string;
-  name: string;
   avatar?: string;
-  points: number;
-  rank: number;
-  badges: number;
+  status: string;
+  joinDate: string;
+  lastActive?: string;
+  postsCount: number;
+  commentsCount: number;
 }
 
+export interface AdminContentState {
+  page: number;
+  search: string;
+  status: 'all' | 'active' | 'pending' | 'rejected';
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+}
+
+export interface AdminPost {
+  id: string;
+  title: string;
+  author: string | { name: string; id: string };
+  category: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  upvotes: number;
+  downvotes: number;
+  commentsCount: number;
+}
+
+export interface AdminStats {
+  users: {
+    total: number;
+    new: number;
+    active: number;
+  };
+  content: {
+    posts: number;
+    comments: number;
+  };
+  engagement: {
+    upvotes: number;
+    comments: number;
+    shares: number;
+  };
+  gamification: {
+    pointsAwarded: number;
+    badgesEarned: number;
+    challengesCompleted: number;
+  };
+}
+
+// Email settings form
 export interface EmailSettingsForm {
   smtpHost: string;
   smtpPort: string;
@@ -229,4 +128,12 @@ export interface EmailSettingsForm {
   smtpFromEmail: string;
   smtpFromName: string;
   enableEmailNotifications: boolean;
+}
+
+// Notification settings form
+export interface NotificationSettingsForm {
+  marketingEmails: boolean;
+  notificationEmails: boolean;
+  weeklyDigest: boolean;
+  newFollowerAlert: boolean;
 }

@@ -1,27 +1,16 @@
 
-export interface PointsTransaction {
-  id: string;
-  userId: string;
-  amount: number;
-  description: string;
-  createdAt: string;
-  transactionType: 'earned' | 'spent' | 'bonus';
-}
-
 export interface Badge {
   id: string;
   name: string;
-  description: string;
-  icon: string;
-  category: 'achievement' | 'contribution' | 'special';
-  pointsRequired: number;
-  createdAt: string;
+  description?: string;
+  icon?: string;
+  category?: string;
+  pointsRequired?: number;
 }
 
 export interface UserBadge {
   id: string;
   userId: string;
-  badgeId: string;
   badge: Badge;
   earnedAt: string;
 }
@@ -29,31 +18,50 @@ export interface UserBadge {
 export interface Challenge {
   id: string;
   title: string;
-  description: string;
+  description?: string;
+  requirements?: string;
   points: number;
-  requirements: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
   isActive: boolean;
-  participants: number;
-  completions: number;
 }
 
 export interface UserChallenge {
   id: string;
   userId: string;
-  challengeId: string;
+  challenge: Challenge;
   progress: number;
   isCompleted: boolean;
   joinedAt: string;
   completedAt?: string;
 }
 
+export interface PointsTransaction {
+  id: string;
+  userId: string;
+  amount: number;
+  description?: string;
+  transactionType: string;
+  referenceId?: string;
+  referenceType?: string;
+  createdAt: string;
+}
+
 export interface LeaderboardEntry {
   userId: string;
-  userName: string;
-  userAvatar?: string;
+  username: string;
+  avatarUrl?: string;
   points: number;
+  level: number;
   badgeCount: number;
+  rank: number;
+}
+
+export interface UserGamificationStats {
+  points: number;
+  level: number;
+  badgeCount: number;
+  challengeCount: number;
+  completedChallengeCount: number;
   rank: number;
 }
