@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, MessageSquare, ThumbsUp, Users } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from "@/integrations/supabase/client";
 
 // Define the community item interface
 interface CommunityItem {
@@ -26,7 +26,7 @@ interface CommunityItem {
 
 // Props interface with section type
 interface CommunitySectionProps {
-  sectionType: 'featured' | 'recommended' | 'trending' | 'my-communities';
+  sectionType: 'featured' | 'recommended' | 'trending' | 'my-communities' | 'discussions' | 'members' | 'events';
 }
 
 const CommunitySection: React.FC<CommunitySectionProps> = ({ sectionType }) => {
@@ -164,6 +164,12 @@ const CommunitySection: React.FC<CommunitySectionProps> = ({ sectionType }) => {
         return 'Trending Communities';
       case 'my-communities':
         return 'My Communities';
+      case 'discussions':
+        return 'Discussion Forums';
+      case 'members':
+        return 'Community Members';
+      case 'events':
+        return 'Upcoming Events';
       default:
         return 'Communities';
     }

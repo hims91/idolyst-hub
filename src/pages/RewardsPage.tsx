@@ -25,9 +25,10 @@ const RewardsPage = () => {
         
         <main className="flex-1 container py-6 max-w-5xl">
           <Tabs defaultValue="available" className="w-full">
-            <TabsList className="grid grid-cols-3 mb-6">
+            <TabsList className="grid grid-cols-4 mb-6">
               <TabsTrigger value="available">Available</TabsTrigger>
-              <TabsTrigger value="earned">Earned</TabsTrigger>
+              <TabsTrigger value="earned">My Badges</TabsTrigger>
+              <TabsTrigger value="challenges">Challenges</TabsTrigger>
               <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
             </TabsList>
             
@@ -37,6 +38,10 @@ const RewardsPage = () => {
             
             <TabsContent value="earned">
               <RewardsSection type="earned" />
+            </TabsContent>
+            
+            <TabsContent value="challenges">
+              <RewardsSection type="challenges" />
             </TabsContent>
             
             <TabsContent value="leaderboard">

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,8 +8,11 @@ import UserAvatar from '@/components/ui/UserAvatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/context/AuthContext';
 import PostCard from './ui/PostCard';
+import TwoFactorAuth from './auth/TwoFactorAuth';
+import { Trophy, Award, Shield } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 
-// Mock user posts for profile
 const userPosts = [
   {
     id: '1',
@@ -50,7 +52,6 @@ const userPosts = [
   },
 ];
 
-// Mock user investments for profile
 const userInvestments = [
   {
     id: 'inv-1',
@@ -88,7 +89,6 @@ const Profile = () => {
   };
   
   const handleSave = () => {
-    // In a real app, we would send this to the server
     setIsEditing(false);
   };
   
@@ -111,7 +111,7 @@ const Profile = () => {
             <UserAvatar 
               name={profile.name} 
               src={user?.avatar}
-              size="lg" // Changed from "xl" to "lg" to match allowed types
+              size="lg"
               className="border-4 border-background relative"
             />
             
@@ -196,6 +196,32 @@ const Profile = () => {
                   )}
                 </div>
               </div>
+
+              <div className="mt-6">
+                <h3 className="font-medium mb-3 flex items-center">
+                  <Award className="h-4 w-4 mr-2 text-primary" />
+                  Badges & Achievements
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col items-center bg-primary/10 border border-primary/20 rounded-md p-2 w-24">
+                    <Trophy className="h-5 w-5 text-yellow-500 mb-1" />
+                    <span className="text-xs font-medium">First Post</span>
+                  </div>
+                  <div className="flex flex-col items-center bg-primary/10 border border-primary/20 rounded-md p-2 w-24">
+                    <Award className="h-5 w-5 text-blue-500 mb-1" />
+                    <span className="text-xs font-medium">Connector</span>
+                  </div>
+                  <div className="flex flex-col items-center bg-muted/50 border border-muted rounded-md p-2 w-24">
+                    <Shield className="h-5 w-5 text-muted-foreground mb-1" />
+                    <span className="text-xs text-muted-foreground">Expert</span>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <Button variant="link" size="sm" className="px-0 h-auto text-sm">
+                    View all badges
+                  </Button>
+                </div>
+              </div>
             </div>
             
             <div className="space-y-4">
@@ -247,16 +273,54 @@ const Profile = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card>
+                <CardHeader className="py-4">
+                  <CardTitle className="text-base flex items-center">
+                    <Trophy className="h-4 w-4 mr-2 text-yellow-500" />
+                    Gamification
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-2">
+                  <div className="space-y-2">
+                    <div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Points</span>
+                        <Badge variant="secondary">350 pts</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Rank: 32 of 1,200 users
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Badges</span>
+                        <span className="text-sm">2 of 24</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Active Challenges</span>
+                        <span className="text-sm">2</span>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" className="w-full mt-2">
+                      View Rewards Page
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </CardContent>
       </Card>
       
       <Tabs defaultValue="posts" className="w-full">
-        <TabsList className="flex w-full max-w-xs mx-auto bg-muted">
+        <TabsList className="flex w-full max-w-md mx-auto bg-muted">
           <TabsTrigger value="posts" className="flex-1">Posts</TabsTrigger>
           <TabsTrigger value="investments" className="flex-1">Investments</TabsTrigger>
           <TabsTrigger value="activity" className="flex-1">Activity</TabsTrigger>
+          <TabsTrigger value="security" className="flex-1">Security</TabsTrigger>
         </TabsList>
         
         <TabsContent value="posts" className="mt-6 space-y-6">
@@ -313,6 +377,12 @@ const Profile = () => {
               <p className="text-muted-foreground">No recent activity to show.</p>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="security" className="mt-6">
+          <div className="space-y-6">
+            <TwoFactorAuth />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
