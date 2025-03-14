@@ -1,11 +1,12 @@
+
 import React from 'react';
 import Header from '@/components/layout/Header';
 import PageTransition from '@/components/layout/PageTransition';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import AdminStats from '@/components/admin/AdminStats'; // Changed from { AdminStats }
-import AdminUsers from '@/components/admin/AdminUsers';
-import AdminContent from '@/components/admin/AdminContent';
-import AdminSettings from '@/components/admin/AdminSettings';
+import AdminStats from '@/components/admin/AdminStats';
+import { AdminUsers } from '@/components/admin/AdminUsers';
+import { AdminContent } from '@/components/admin/AdminContent';
+import { AdminSettings } from '@/components/admin/AdminSettings';
 import { useRequireAuth } from '@/hooks/use-auth-route';
 
 const AdminPage = () => {

@@ -1,10 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, UserBadge } from '@/types/gamification';
-import { supabase } from '@/integrations/supabase/client';
+import { getAllBadges, getUserBadges } from '@/services/gamificationService';
 import { useToast } from '@/hooks/use-toast';
 import { Award, CheckCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface BadgesSectionProps {
   type: 'available' | 'earned';
@@ -21,29 +21,18 @@ const BadgesSection: React.FC<BadgesSectionProps> = ({ type }) => {
       try {
         setIsLoading(true);
         
-        // Fetch all badges
-        const { data: badgesData, error: badgesError } = await supabase
-          .from('badges')
-          .select('*')
-          .order('points_required', { ascending: true });
-        
-        if (badgesError) throw badgesError;
-        
-        // Fetch user badges if authenticated
+        // Get current user
         const { data: { user } } = await supabase.auth.getUser();
         
-        if (user) {
-          const { data: userBadgesData, error: userBadgesError } = await supabase
-            .from('user_badges')
-            .select('*, badge:badges(*)')
-            .eq('user_id', user.id);
-          
-          if (userBadgesError) throw userBadgesError;
-          
-          setUserBadges(userBadgesData as unknown as UserBadge[]);
-        }
+        // Fetch all badges
+        const badgesData = await getAllBadges();
+        setBadges(badgesData);
         
-        setBadges(badgesData as unknown as Badge[]);
+        if (user) {
+          // Fetch user badges
+          const userBadgesData = await getUserBadges(user.id);
+          setUserBadges(userBadgesData);
+        }
       } catch (error) {
         console.error('Error fetching badges:', error);
         toast({

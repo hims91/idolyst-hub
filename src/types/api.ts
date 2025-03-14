@@ -36,6 +36,17 @@ export interface RegisterData {
   password: string;
 }
 
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface AuthResponse {
+  user: User;
+  tokens: AuthTokens;
+  message?: string;
+}
+
 export interface AdminStats {
   users: number;
   posts: number;
@@ -211,8 +222,11 @@ export interface LeaderboardUser {
 }
 
 export interface EmailSettingsForm {
-  marketingEmails: boolean;
-  notificationEmails: boolean;
-  weeklyDigest: boolean;
-  newFollowerAlert: boolean;
+  smtpHost: string;
+  smtpPort: string;
+  smtpUser: string;
+  smtpPassword: string;
+  smtpFromEmail: string;
+  smtpFromName: string;
+  enableEmailNotifications: boolean;
 }

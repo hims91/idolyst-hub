@@ -75,7 +75,11 @@ export const AdminContent = () => {
           {paginatedPosts.items.map(post => (
             <TableRow key={post.id}>
               <TableCell>{post.title}</TableCell>
-              <TableCell>{typeof post.author === 'string' ? post.author : post.author.name}</TableCell>
+              <TableCell>
+                {typeof post.author === 'string' 
+                  ? post.author 
+                  : post.author?.name || 'Unknown'}
+              </TableCell>
               <TableCell>{post.category}</TableCell>
               <TableCell>{post.status}</TableCell>
               <TableCell>

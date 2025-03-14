@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -23,6 +24,12 @@ export const AdminSettings = () => {
   const form = useForm<EmailSettingsForm>({
     resolver: zodResolver(emailSettingsSchema),
     defaultValues: {
+      smtpHost: '',
+      smtpPort: '',
+      smtpUser: '',
+      smtpPassword: '',
+      smtpFromEmail: '',
+      smtpFromName: '',
       enableEmailNotifications: true,
     },
   });

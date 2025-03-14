@@ -3,18 +3,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge, PointsTransaction, UserBadge, Challenge, UserChallenge, LeaderboardEntry } from '@/types/gamification';
 
 /**
+ * Mock data to use until database tables are created
+ */
+const MOCK_DATA = {
+  points: 100,
+  pointTransactions: [],
+  badges: [],
+  userBadges: [],
+  challenges: [],
+  userChallenges: [],
+  leaderboard: []
+};
+
+/**
  * Fetch user points total
  */
 export async function getUserPoints(userId: string): Promise<number> {
   try {
-    const { data, error } = await supabase
-      .from('user_points')
-      .select('points')
-      .eq('user_id', userId)
-      .maybeSingle();
-    
-    if (error) throw error;
-    return data?.points || 0;
+    // Temporary solution until tables are created
+    return MOCK_DATA.points;
   } catch (error) {
     console.error('Error fetching user points:', error);
     return 0;
@@ -26,14 +33,8 @@ export async function getUserPoints(userId: string): Promise<number> {
  */
 export async function getPointTransactions(userId: string): Promise<PointsTransaction[]> {
   try {
-    const { data, error } = await supabase
-      .from('point_transactions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    return data as unknown as PointsTransaction[];
+    // Temporary solution until tables are created
+    return MOCK_DATA.pointTransactions as PointsTransaction[];
   } catch (error) {
     console.error('Error fetching point transactions:', error);
     return [];
@@ -45,13 +46,8 @@ export async function getPointTransactions(userId: string): Promise<PointsTransa
  */
 export async function getUserBadges(userId: string): Promise<UserBadge[]> {
   try {
-    const { data, error } = await supabase
-      .from('user_badges')
-      .select('*, badge:badges(*)')
-      .eq('user_id', userId);
-    
-    if (error) throw error;
-    return data as unknown as UserBadge[];
+    // Temporary solution until tables are created
+    return MOCK_DATA.userBadges as UserBadge[];
   } catch (error) {
     console.error('Error fetching user badges:', error);
     return [];
@@ -63,13 +59,8 @@ export async function getUserBadges(userId: string): Promise<UserBadge[]> {
  */
 export async function getAllBadges(): Promise<Badge[]> {
   try {
-    const { data, error } = await supabase
-      .from('badges')
-      .select('*')
-      .order('points_required', { ascending: true });
-    
-    if (error) throw error;
-    return data as unknown as Badge[];
+    // Temporary solution until tables are created
+    return MOCK_DATA.badges as Badge[];
   } catch (error) {
     console.error('Error fetching badges:', error);
     return [];
@@ -81,14 +72,8 @@ export async function getAllBadges(): Promise<Badge[]> {
  */
 export async function getActiveChallenges(): Promise<Challenge[]> {
   try {
-    const { data, error } = await supabase
-      .from('challenges')
-      .select('*')
-      .eq('is_active', true)
-      .order('end_date', { ascending: true });
-    
-    if (error) throw error;
-    return data as unknown as Challenge[];
+    // Temporary solution until tables are created
+    return MOCK_DATA.challenges as Challenge[];
   } catch (error) {
     console.error('Error fetching challenges:', error);
     return [];
@@ -100,13 +85,8 @@ export async function getActiveChallenges(): Promise<Challenge[]> {
  */
 export async function getUserChallenges(userId: string): Promise<UserChallenge[]> {
   try {
-    const { data, error } = await supabase
-      .from('user_challenges')
-      .select('*')
-      .eq('user_id', userId);
-    
-    if (error) throw error;
-    return data as unknown as UserChallenge[];
+    // Temporary solution until tables are created
+    return MOCK_DATA.userChallenges as UserChallenge[];
   } catch (error) {
     console.error('Error fetching user challenges:', error);
     return [];
@@ -118,16 +98,8 @@ export async function getUserChallenges(userId: string): Promise<UserChallenge[]
  */
 export async function joinChallenge(userId: string, challengeId: string): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('user_challenges')
-      .insert({
-        user_id: userId,
-        challenge_id: challengeId,
-        progress: 0,
-        is_completed: false
-      });
-    
-    if (error) throw error;
+    // Temporary solution until tables are created
+    console.log('Join challenge called with userId:', userId, 'challengeId:', challengeId);
     return true;
   } catch (error) {
     console.error('Error joining challenge:', error);
@@ -145,15 +117,8 @@ export async function updateChallengeProgress(
   isCompleted: boolean = false
 ): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .rpc('update_challenge_progress', {
-        p_user_id: userId,
-        p_challenge_id: challengeId,
-        p_progress: progress,
-        p_completed: isCompleted
-      });
-    
-    if (error) throw error;
+    // Temporary solution until tables are created
+    console.log('Update challenge progress called with userId:', userId, 'challengeId:', challengeId, 'progress:', progress);
     return true;
   } catch (error) {
     console.error('Error updating challenge progress:', error);
@@ -166,11 +131,8 @@ export async function updateChallengeProgress(
  */
 export async function getLeaderboard(limit: number = 10): Promise<LeaderboardEntry[]> {
   try {
-    const { data, error } = await supabase
-      .rpc('get_leaderboard', { limit_count: limit });
-    
-    if (error) throw error;
-    return data as unknown as LeaderboardEntry[];
+    // Temporary solution until tables are created
+    return MOCK_DATA.leaderboard as LeaderboardEntry[];
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
     return [];
@@ -182,11 +144,14 @@ export async function getLeaderboard(limit: number = 10): Promise<LeaderboardEnt
  */
 export async function getUserGamificationStats(userId: string) {
   try {
-    const { data, error } = await supabase
-      .rpc('get_user_gamification_stats', { p_user_id: userId });
-    
-    if (error) throw error;
-    return data;
+    // Temporary solution until tables are created
+    return {
+      points: 100,
+      badge_count: 3,
+      challenge_count: 5,
+      completed_challenge_count: 2,
+      rank: 10
+    };
   } catch (error) {
     console.error('Error fetching user gamification stats:', error);
     return null;

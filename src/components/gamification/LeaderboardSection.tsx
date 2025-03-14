@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LeaderboardEntry } from '@/types/gamification';
-import { supabase } from '@/integrations/supabase/client';
+import { getLeaderboard } from '@/services/gamificationService';
 import { useToast } from '@/hooks/use-toast';
 import { Trophy, Medal, Award } from 'lucide-react';
 
@@ -17,11 +17,8 @@ const LeaderboardSection: React.FC = () => {
       try {
         setIsLoading(true);
         
-        // Join user_points with profiles to get user information
-        const { data, error } = await supabase.rpc('get_leaderboard', { limit_count: 20 });
-        
-        if (error) throw error;
-        
+        // Fetch leaderboard data
+        const data = await getLeaderboard(20);
         setLeaderboard(data || []);
       } catch (error) {
         console.error('Error fetching leaderboard:', error);

@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Trophy, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { getActiveChallenges, getUserChallenges, joinChallenge } from '@/services/gamificationService';
 
 const ChallengesSection: React.FC = () => {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
@@ -28,24 +29,13 @@ const ChallengesSection: React.FC = () => {
         }
         
         // Fetch active challenges
-        const { data: challengesData, error: challengesError } = await supabase
-          .from('challenges')
-          .select('*')
-          .eq('is_active', true)
-          .order('end_date', { ascending: true });
-        
-        if (challengesError) throw challengesError;
+        const challengesData = await getActiveChallenges();
         
         // Fetch user challenges
-        const { data: userChallengesData, error: userChallengesError } = await supabase
-          .from('user_challenges')
-          .select('*')
-          .eq('user_id', user.id);
+        const userChallengesData = await getUserChallenges(user.id);
         
-        if (userChallengesError) throw userChallengesError;
-        
-        setChallenges(challengesData as unknown as Challenge[]);
-        setUserChallenges(userChallengesData as unknown as UserChallenge[]);
+        setChallenges(challengesData);
+        setUserChallenges(userChallengesData);
       } catch (error) {
         console.error('Error fetching challenges:', error);
         toast({
@@ -61,7 +51,7 @@ const ChallengesSection: React.FC = () => {
     fetchChallenges();
   }, [toast]);
   
-  const joinChallenge = async (challengeId: string) => {
+  const handleJoinChallenge = async (challengeId: string) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -69,16 +59,9 @@ const ChallengesSection: React.FC = () => {
         throw new Error('User not authenticated');
       }
       
-      const { error } = await supabase
-        .from('user_challenges')
-        .insert({
-          user_id: user.id,
-          challenge_id: challengeId,
-          progress: 0,
-          is_completed: false
-        });
+      const success = await joinChallenge(user.id, challengeId);
       
-      if (error) throw error;
+      if (!success) throw new Error("Failed to join challenge");
       
       // Update local state
       const challenge = challenges.find(c => c.id === challengeId);
@@ -216,7 +199,7 @@ const ChallengesSection: React.FC = () => {
               </div>
               {!joined && (
                 <Button 
-                  onClick={() => joinChallenge(challenge.id)} 
+                  onClick={() => handleJoinChallenge(challenge.id)} 
                   size="sm" 
                   variant="outline"
                   className="ml-2"
