@@ -1,0 +1,26 @@
+
+project_id = "klcckjmitczqbsueyjep"
+
+[functions.generate2FASecret]
+verify_jwt = true
+
+[functions.verify2FASetup]
+verify_jwt = true
+
+[functions.verify2FALogin]
+verify_jwt = true
+
+[functions.check2FAStatus]
+verify_jwt = true
+
+[functions.disable2FA]
+verify_jwt = true
+
+[functions.updateChallengeProgress]
+verify_jwt = true
+
+[functions.recordMediaUpload]
+verify_jwt = true
+
+[functions.deleteMediaRecord]
+verify_jwt = true

@@ -6,6 +6,7 @@ export interface Badge {
   icon?: string;
   category?: string;
   pointsRequired?: number;
+  createdAt?: string;
 }
 
 export interface UserBadge {
@@ -24,8 +25,7 @@ export interface Challenge {
   startDate?: string;
   endDate?: string;
   isActive: boolean;
-  participants?: number;
-  completions?: number;
+  createdAt?: string;
 }
 
 export interface UserChallenge {

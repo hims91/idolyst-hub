@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LeaderboardEntry } from '@/types/gamification';
 import { getLeaderboard } from '@/services/gamificationService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { Trophy, Medal, Award } from 'lucide-react';
 
 const LeaderboardSection: React.FC = () => {
@@ -103,21 +103,16 @@ const LeaderboardSection: React.FC = () => {
               <div className="w-8 h-8 flex items-center justify-center mr-3">
                 {getRankIcon(entry.rank)}
               </div>
-              <div className="flex-1 flex items-center">
-                <Avatar className="h-10 w-10 mr-3">
-                  <AvatarImage src={entry.userAvatar} alt={entry.userName} />
-                  <AvatarFallback>
-                    {entry.userName?.substring(0, 2).toUpperCase() || 'U'}
-                  </AvatarFallback>
+              <div className="flex items-center flex-1">
+                <Avatar className="h-8 w-8 mr-2">
+                  <AvatarImage src={entry.avatarUrl} alt={entry.username} />
+                  <AvatarFallback>{entry.username.charAt(0)}</AvatarFallback>
                 </Avatar>
-                <div>
-                  <p className="font-medium">{entry.userName}</p>
-                  <p className="text-xs text-gray-500">{entry.badgeCount} badges</p>
-                </div>
+                <span className="font-medium text-sm">{entry.username}</span>
               </div>
-              <div className="text-right">
-                <p className="font-bold text-primary">{entry.points}</p>
-                <p className="text-xs text-gray-500">points</p>
+              <div className="flex flex-col items-end">
+                <span className="font-bold">{entry.points} pts</span>
+                <span className="text-xs text-gray-500">Level {entry.level}</span>
               </div>
             </div>
           ))}

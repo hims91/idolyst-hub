@@ -26,26 +26,22 @@ export const uploadFile = async (file: File, path: string = 'general'): Promise<
       console.error('Error uploading file:', error);
       return null;
     }
-
-    // Record the file upload in the database
-    const { error: dbError } = await supabase
-      .from('media_files')
-      .insert({
-        file_name: fileName,
-        file_path: filePath,
-        file_type: path,
-        file_size: file.size,
-        mime_type: file.type
-      });
-
-    if (dbError) {
-      console.error('Error recording file upload:', dbError);
-    }
     
     // Get the public URL
     const { data: urlData } = supabase.storage
       .from('media')
       .getPublicUrl(filePath);
+    
+    // Record the file metadata
+    await supabase.functions.invoke('recordMediaUpload', {
+      body: {
+        fileName,
+        filePath,
+        fileType: path,
+        fileSize: file.size,
+        mimeType: file.type
+      }
+    });
     
     return urlData.publicUrl;
   } catch (error) {
@@ -72,14 +68,9 @@ export const deleteFile = async (filePath: string): Promise<boolean> => {
     }
     
     // Delete record from database
-    const { error: dbError } = await supabase
-      .from('media_files')
-      .delete()
-      .eq('file_path', filePath);
-    
-    if (dbError) {
-      console.error('Error deleting file record:', dbError);
-    }
+    await supabase.functions.invoke('deleteMediaRecord', {
+      body: { filePath }
+    });
     
     return true;
   } catch (error) {

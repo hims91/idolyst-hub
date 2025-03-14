@@ -8,25 +8,17 @@ import { supabase } from '@/integrations/supabase/client';
  */
 export const enable2FA = async (userId: string): Promise<string | null> => {
   try {
-    // Generate a random secret key (in a real app, use a proper TOTP library)
-    // This is a placeholder implementation
-    const secretKey = Math.random().toString(36).substring(2, 15);
-    
-    const { error } = await supabase
-      .from('user_2fa')
-      .upsert({
-        user_id: userId,
-        secret: secretKey,
-        is_enabled: false, // Initially false until verified
-        updated_at: new Date().toISOString()
-      });
+    // Call edge function to generate a TOTP secret
+    const { data, error } = await supabase.functions.invoke('generate2FASecret', {
+      body: { userId }
+    });
     
     if (error) {
       console.error('Error enabling 2FA:', error);
       return null;
     }
     
-    return secretKey;
+    return data?.secret || null;
   } catch (error) {
     console.error('Error in enable2FA:', error);
     return null;
@@ -41,35 +33,20 @@ export const enable2FA = async (userId: string): Promise<string | null> => {
  */
 export const verify2FASetup = async (userId: string, code: string): Promise<boolean> => {
   try {
-    // Call the Supabase function to verify the code
-    const { data, error } = await supabase
-      .rpc('verify_totp', { 
-        user_uuid: userId,
-        otp_code: code
-      });
+    // Call the edge function to verify the code and complete setup
+    const { data, error } = await supabase.functions.invoke('verify2FASetup', {
+      body: { 
+        userId,
+        code
+      }
+    });
     
-    if (error || !data) {
+    if (error) {
       console.error('Error verifying 2FA code:', error);
       return false;
     }
     
-    // Update the user's 2FA status
-    if (data) {
-      const { error: updateError } = await supabase
-        .from('user_2fa')
-        .update({
-          is_enabled: true,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId);
-      
-      if (updateError) {
-        console.error('Error updating 2FA status:', updateError);
-        return false;
-      }
-    }
-    
-    return data;
+    return data?.success || false;
   } catch (error) {
     console.error('Error in verify2FASetup:', error);
     return false;
@@ -84,19 +61,20 @@ export const verify2FASetup = async (userId: string, code: string): Promise<bool
  */
 export const verify2FALogin = async (userId: string, code: string): Promise<boolean> => {
   try {
-    // Call the Supabase function to verify the code
-    const { data, error } = await supabase
-      .rpc('verify_totp', { 
-        user_uuid: userId,
-        otp_code: code
-      });
+    // Call the edge function to verify the code
+    const { data, error } = await supabase.functions.invoke('verify2FALogin', {
+      body: { 
+        userId,
+        code
+      }
+    });
     
     if (error) {
       console.error('Error verifying 2FA code:', error);
       return false;
     }
     
-    return data;
+    return data?.success || false;
   } catch (error) {
     console.error('Error in verify2FALogin:', error);
     return false;
@@ -110,18 +88,16 @@ export const verify2FALogin = async (userId: string, code: string): Promise<bool
  */
 export const is2FAEnabled = async (userId: string): Promise<boolean> => {
   try {
-    const { data, error } = await supabase
-      .from('user_2fa')
-      .select('is_enabled')
-      .eq('user_id', userId)
-      .single();
+    const { data, error } = await supabase.functions.invoke('check2FAStatus', {
+      body: { userId }
+    });
     
     if (error) {
       console.error('Error checking 2FA status:', error);
       return false;
     }
     
-    return data?.is_enabled || false;
+    return data?.isEnabled || false;
   } catch (error) {
     console.error('Error in is2FAEnabled:', error);
     return false;
@@ -135,17 +111,16 @@ export const is2FAEnabled = async (userId: string): Promise<boolean> => {
  */
 export const disable2FA = async (userId: string): Promise<boolean> => {
   try {
-    const { error } = await supabase
-      .from('user_2fa')
-      .delete()
-      .eq('user_id', userId);
+    const { data, error } = await supabase.functions.invoke('disable2FA', {
+      body: { userId }
+    });
     
     if (error) {
       console.error('Error disabling 2FA:', error);
       return false;
     }
     
-    return true;
+    return data?.success || false;
   } catch (error) {
     console.error('Error in disable2FA:', error);
     return false;

@@ -1,8 +1,9 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge, UserBadge } from '@/types/gamification';
 import { getAllBadges, getUserBadges } from '@/services/gamificationService';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { Award, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -53,7 +54,7 @@ const BadgesSection: React.FC<BadgesSectionProps> = ({ type }) => {
     if (type === 'earned') {
       return userBadges.map(ub => ub.badge);
     } else {
-      const earnedBadgeIds = new Set(userBadges.map(ub => ub.badgeId));
+      const earnedBadgeIds = new Set(userBadges.map(ub => ub.badge.id));
       return badges.filter(badge => !earnedBadgeIds.has(badge.id));
     }
   }, [badges, userBadges, type]);

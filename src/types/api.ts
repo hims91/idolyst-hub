@@ -87,7 +87,10 @@ export interface AdminContentState {
 export interface AdminPost {
   id: string;
   title: string;
-  author: string | { name: string; id: string };
+  author: {
+    id: string;
+    name: string;
+  };
   category: string;
   status: string;
   createdAt: string;
@@ -168,6 +171,7 @@ export interface Comment {
     id: string;
     name: string;
     avatar?: string;
+    role: string;
   };
   createdAt: string;
   timeAgo: string;

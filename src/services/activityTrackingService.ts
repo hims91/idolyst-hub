@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
  * @param userId The user's ID
  * @param action The action performed (e.g., 'post_created', 'comment_added')
  * @param points Number of points to award
+ * @param description Description of the activity
  * @param referenceId ID of the related object (post, comment, etc.)
  * @param referenceType Type of the related object
  * @returns Whether the tracking was successful
@@ -54,56 +55,18 @@ export const updateChallengeProgress = async (
   actionValue: number = 1
 ): Promise<boolean> => {
   try {
-    // Fetch user's active challenges that match this action type
-    const { data: challenges, error } = await supabase
-      .from('user_challenges')
-      .select(`
-        id,
-        challenge_id,
-        progress,
-        is_completed,
-        challenges:challenge_id (
-          id,
-          title,
-          requirements
-        )
-      `)
-      .eq('user_id', userId)
-      .eq('is_completed', false);
+    // Use the edge function to update challenge progress
+    const { error } = await supabase.functions.invoke('updateChallengeProgress', {
+      body: { 
+        userId, 
+        actionType, 
+        actionValue 
+      }
+    });
     
     if (error) {
-      console.error('Error fetching user challenges:', error);
+      console.error('Error updating challenge progress:', error);
       return false;
-    }
-    
-    // Filter challenges that are related to this action
-    // This is a simplified implementation - in a real app, you'd have
-    // a more sophisticated way to match actions to challenges
-    const relevantChallenges = challenges.filter(c => 
-      c.challenges.requirements?.includes(actionType)
-    );
-    
-    if (relevantChallenges.length === 0) {
-      return true; // No relevant challenges to update
-    }
-    
-    // Update progress for each relevant challenge
-    for (const challenge of relevantChallenges) {
-      // Simple progress update - in reality, this would be more complex
-      const newProgress = Math.min(100, challenge.progress + actionValue);
-      
-      const { error: updateError } = await supabase
-        .from('user_challenges')
-        .update({
-          progress: newProgress,
-          is_completed: newProgress >= 100,
-          completed_at: newProgress >= 100 ? new Date().toISOString() : null
-        })
-        .eq('id', challenge.id);
-      
-      if (updateError) {
-        console.error('Error updating challenge progress:', updateError);
-      }
     }
     
     return true;
