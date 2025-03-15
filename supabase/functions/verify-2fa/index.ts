@@ -48,10 +48,14 @@ serve(async (req: Request) => {
       if (error) {
         throw new Error(`Failed to store 2FA secret: ${error.message}`)
       }
+      
+      // Generate a QR code URL (in a real app, this would be a proper TOTP URI)
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=otpauth://totp/Founder:${userId}?secret=${newSecret}&issuer=FounderPlatform`
 
       return new Response(JSON.stringify({
         success: true,
         secret: newSecret,
+        qrCodeUrl: qrCodeUrl
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
@@ -92,6 +96,27 @@ serve(async (req: Request) => {
     }
 
     else if (action === 'disable') {
+      // Verify the code before disabling 2FA
+      const { data: isValid, error: verifyError } = await supabase
+        .rpc('verify_totp', { 
+          user_uuid: userId,
+          otp_code: code
+        });
+
+      if (verifyError) {
+        throw new Error(`Failed to verify code: ${verifyError.message}`);
+      }
+
+      if (!isValid) {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Invalid verification code'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        })
+      }
+
       const { error } = await supabase
         .from('user_2fa')
         .delete()
@@ -103,6 +128,26 @@ serve(async (req: Request) => {
 
       return new Response(JSON.stringify({
         success: true,
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      })
+    }
+
+    else if (action === 'status') {
+      const { data, error } = await supabase
+        .from('user_2fa')
+        .select('is_enabled')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(`Failed to check 2FA status: ${error.message}`)
+      }
+
+      return new Response(JSON.stringify({
+        success: true,
+        isEnabled: data?.is_enabled || false
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,

@@ -70,3 +70,16 @@ export interface PointTransaction {
   referenceType?: string;
   createdAt: string;
 }
+
+// Two-factor authentication types
+export interface TwoFactorAuthSetupResponse {
+  success: boolean;
+  secret?: string;
+  qrCodeUrl?: string;
+  error?: string;
+}
+
+export interface TwoFactorAuthVerifyResponse {
+  success: boolean;
+  error?: string;
+}

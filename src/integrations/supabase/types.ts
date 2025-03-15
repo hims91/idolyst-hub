@@ -435,6 +435,12 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment: {
+        Args: {
+          value: number
+        }
+        Returns: number
+      }
       verify_totp: {
         Args: {
           user_uuid: string
