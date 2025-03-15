@@ -38,17 +38,17 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  role?: string;
   avatar?: string;
   bio?: string;
-  joinDate?: string;
-  emailVerified?: boolean;
   company?: string;
   location?: string;
   website?: string;
-  socialLinks?: Record<string, string>;
-  skills?: string[];
-  badges?: Badge[];
+  joinDate?: string;
+  followers?: number;
+  following?: number;
+  posts?: number;
+  isFollowing?: boolean;
 }
 
 // Admin types

@@ -1,61 +1,88 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { User, UserConnection, Post } from '@/types/api';
+import { supabase } from "@/integrations/supabase/client";
+import { User, Post, UserStats } from "@/types/api";
 
 /**
- * Get user profile data
- * @param userId User ID to fetch
- * @returns User data or null if not found
+ * Get a user by their ID
  */
-export const getUser = async (userId: string): Promise<User | null> => {
+const getUser = async (userId: string): Promise<User | null> => {
   try {
-    const { data, error } = await supabase
+    // Get user profile data
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select(`
-        id,
-        name,
-        email,
-        role,
-        avatar,
-        bio,
-        company,
-        location,
-        website,
-        join_date
-      `)
+      .select('*')
       .eq('id', userId)
       .single();
     
-    if (error) {
-      console.error('Error fetching user profile:', error);
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError);
       return null;
     }
     
-    if (!data) {
-      return null;
+    // Check if user is being followed by the current logged in user
+    let isFollowing = false;
+    const session = await supabase.auth.getSession();
+    if (session?.data?.session?.user?.id) {
+      const currentUserId = session.data.session.user.id;
+      const { data: followData } = await supabase
+        .from('user_followers')
+        .select('*')
+        .eq('follower_id', currentUserId)
+        .eq('following_id', userId)
+        .single();
+      
+      isFollowing = !!followData;
     }
     
-    // Fetch user badges
-    const { data: badges } = await supabase
-      .from('user_badges')
-      .select(`
-        badges (*)
-      `)
+    // Get follower count
+    const { count: followersCount, error: followersError } = await supabase
+      .from('user_followers')
+      .select('*', { count: 'exact', head: true })
+      .eq('following_id', userId);
+    
+    if (followersError) {
+      console.error('Error fetching followers count:', followersError);
+    }
+    
+    // Get following count
+    const { count: followingCount, error: followingError } = await supabase
+      .from('user_followers')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', userId);
+    
+    if (followingError) {
+      console.error('Error fetching following count:', followingError);
+    }
+    
+    // Get post count
+    const { count: postsCount, error: postsError } = await supabase
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', userId);
     
-    return {
-      id: data.id,
-      name: data.name || '',
-      email: data.email || '',
-      role: data.role || 'user',
-      avatar: data.avatar,
-      bio: data.bio,
-      company: data.company,
-      location: data.location,
-      website: data.website,
-      joinDate: data.join_date,
-      badges: badges?.map(item => item.badges) || []
+    if (postsError) {
+      console.error('Error fetching posts count:', postsError);
+    }
+    
+    // Format user data
+    const user: User = {
+      id: profile.id,
+      name: profile.name || '',
+      email: '',  // We don't expose email for privacy reasons
+      role: profile.role || 'member',
+      avatar: profile.avatar || '',
+      bio: profile.bio || '',
+      company: profile.company || '',
+      location: profile.location || '',
+      website: profile.website || '',
+      joinDate: profile.join_date || new Date().toISOString(),
+      followers: followersCount || 0,
+      following: followingCount || 0,
+      posts: postsCount || 0,
+      isFollowing: isFollowing
     };
+    
+    return user;
   } catch (error) {
     console.error('Error in getUser:', error);
     return null;
@@ -64,18 +91,14 @@ export const getUser = async (userId: string): Promise<User | null> => {
 
 /**
  * Follow a user
- * @param followerId The ID of the user who is following
- * @param followingId The ID of the user to be followed
- * @returns Whether the follow was successful
  */
-export const followUser = async (followerId: string, followingId: string): Promise<boolean> => {
+const followUser = async (currentUserId: string, userToFollowId: string): Promise<boolean> => {
   try {
-    // Check if we need to create a followers table
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('user_followers')
       .insert({
-        follower_id: followerId,
-        following_id: followingId
+        follower_id: currentUserId,
+        following_id: userToFollowId
       });
     
     if (error) {
@@ -92,19 +115,14 @@ export const followUser = async (followerId: string, followingId: string): Promi
 
 /**
  * Unfollow a user
- * @param followerId The ID of the user who is unfollowing
- * @param followingId The ID of the user to be unfollowed
- * @returns Whether the unfollow was successful
  */
-export const unfollowUser = async (followerId: string, followingId: string): Promise<boolean> => {
+const unfollowUser = async (currentUserId: string, userToUnfollowId: string): Promise<boolean> => {
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('user_followers')
       .delete()
-      .match({
-        follower_id: followerId,
-        following_id: followingId
-      });
+      .eq('follower_id', currentUserId)
+      .eq('following_id', userToUnfollowId);
     
     if (error) {
       console.error('Error unfollowing user:', error);
@@ -120,23 +138,13 @@ export const unfollowUser = async (followerId: string, followingId: string): Pro
 
 /**
  * Get a user's posts
- * @param userId User ID to fetch posts for
- * @returns Array of user posts
  */
-export const getUserPosts = async (userId: string): Promise<Post[]> => {
+const getUserPosts = async (userId: string): Promise<Post[]> => {
   try {
     const { data, error } = await supabase
       .from('posts')
       .select(`
-        id,
-        title,
-        content,
-        created_at,
-        updated_at,
-        upvotes,
-        downvotes,
-        image_url,
-        user_id,
+        *,
         profiles:user_id (
           id,
           name,
@@ -152,24 +160,27 @@ export const getUserPosts = async (userId: string): Promise<Post[]> => {
       return [];
     }
     
-    return data?.map(post => ({
+    const posts: Post[] = data.map((post) => ({
       id: post.id,
-      title: post.title,
+      title: post.title || '',
       content: post.content,
       author: {
         id: post.profiles.id,
-        name: post.profiles.name || 'Anonymous',
+        name: post.profiles.name,
         avatar: post.profiles.avatar,
-        role: post.profiles.role || 'user'
+        role: post.profiles.role
       },
-      category: 'general', // Default category
+      createdAt: post.created_at,
+      updatedAt: post.updated_at,
       upvotes: post.upvotes || 0,
       downvotes: post.downvotes || 0,
-      commentCount: 0, // We'll need to count comments separately
-      timeAgo: new Date(post.created_at).toLocaleDateString(),
-      createdAt: post.created_at,
-      imageUrl: post.image_url
-    })) || [];
+      comments: [],
+      isUpvoted: false,
+      isDownvoted: false,
+      isBookmarked: false
+    }));
+    
+    return posts;
   } catch (error) {
     console.error('Error in getUserPosts:', error);
     return [];
@@ -178,91 +189,103 @@ export const getUserPosts = async (userId: string): Promise<Post[]> => {
 
 /**
  * Get a user's followers
- * @param userId User ID to fetch followers for
- * @returns Array of users who follow the given user
  */
-export const getUserFollowers = async (userId: string): Promise<UserConnection[]> => {
+const getUserFollowers = async (userId: string, page: number = 1, limit: number = 10): Promise<{ users: User[], totalCount: number }> => {
   try {
-    const { data, error } = await supabase
+    // Calculate offset
+    const offset = (page - 1) * limit;
+    
+    // Get followers with pagination
+    const { data, error, count } = await supabase
       .from('user_followers')
       .select(`
         follower_id,
-        profiles!user_followers_follower_id_fkey (
+        profiles:follower_id (
           id,
           name,
-          role,
           avatar,
-          company
+          role,
+          bio
         )
-      `)
-      .eq('following_id', userId);
+      `, { count: 'exact' })
+      .eq('following_id', userId)
+      .range(offset, offset + limit - 1);
     
     if (error) {
       console.error('Error fetching user followers:', error);
-      return [];
+      return { users: [], totalCount: 0 };
     }
     
-    return data?.map(item => {
-      const profile = item.profiles;
-      return {
-        id: profile.id,
-        name: profile.name || 'Anonymous',
-        role: profile.role || 'user',
-        avatar: profile.avatar,
-        company: profile.company,
-        isFollowing: false // We need to check this separately
-      };
-    }) || [];
+    const followers: User[] = data.map((item) => ({
+      id: item.profiles.id,
+      name: item.profiles.name || '',
+      avatar: item.profiles.avatar || '',
+      role: item.profiles.role || 'member',
+      bio: item.profiles.bio || '',
+      email: '',
+      isFollowing: false
+    }));
+    
+    return { 
+      users: followers, 
+      totalCount: count || 0 
+    };
   } catch (error) {
     console.error('Error in getUserFollowers:', error);
-    return [];
+    return { users: [], totalCount: 0 };
   }
 };
 
 /**
- * Get users followed by a user
- * @param userId User ID to fetch following for
- * @returns Array of users followed by the given user
+ * Get users that a user is following
  */
-export const getUserFollowing = async (userId: string): Promise<UserConnection[]> => {
+const getUserFollowing = async (userId: string, page: number = 1, limit: number = 10): Promise<{ users: User[], totalCount: number }> => {
   try {
-    const { data, error } = await supabase
+    // Calculate offset
+    const offset = (page - 1) * limit;
+    
+    // Get following with pagination
+    const { data, error, count } = await supabase
       .from('user_followers')
       .select(`
         following_id,
-        profiles!user_followers_following_id_fkey (
+        profiles:following_id (
           id,
           name,
-          role,
           avatar,
-          company
+          role,
+          bio
         )
-      `)
-      .eq('follower_id', userId);
+      `, { count: 'exact' })
+      .eq('follower_id', userId)
+      .range(offset, offset + limit - 1);
     
     if (error) {
       console.error('Error fetching user following:', error);
-      return [];
+      return { users: [], totalCount: 0 };
     }
     
-    return data?.map(item => {
-      const profile = item.profiles;
-      return {
-        id: profile.id,
-        name: profile.name || 'Anonymous',
-        role: profile.role || 'user',
-        avatar: profile.avatar,
-        company: profile.company,
-        isFollowing: true // User is following these profiles
-      };
-    }) || [];
+    const following: User[] = data.map((item) => ({
+      id: item.profiles.id,
+      name: item.profiles.name || '',
+      avatar: item.profiles.avatar || '',
+      role: item.profiles.role || 'member',
+      bio: item.profiles.bio || '',
+      email: '',
+      isFollowing: true
+    }));
+    
+    return { 
+      users: following, 
+      totalCount: count || 0 
+    };
   } catch (error) {
     console.error('Error in getUserFollowing:', error);
-    return [];
+    return { users: [], totalCount: 0 };
   }
 };
 
-export default {
+const userService = {
   getUser,
   followUser,
   unfollowUser,
@@ -270,3 +293,5 @@ export default {
   getUserFollowers,
   getUserFollowing
 };
+
+export default userService;

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useRequireAuth } from '@/hooks/use-auth-route';
@@ -8,17 +9,21 @@ import { adminService } from '@/services/api/admin';
 import { useQuery } from '@tanstack/react-query';
 
 const AdminPage = () => {
-  const { isValidSession } = useRequireAuth({ requiredRole: 'admin' });
+  const { user, isLoading } = useRequireAuth('admin');
   
   const [activeTab, setActiveTab] = useState('overview');
   
-  const { data: statsData, isLoading } = useQuery({
+  const { data: statsData, isLoading: isStatsLoading } = useQuery({
     queryKey: ['admin', 'stats'],
-    queryFn: () => adminService.getAdminStats(),
-    enabled: isValidSession,
+    queryFn: () => adminService.getStats(),
+    enabled: !!user,
   });
 
-  if (!isValidSession) {
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -41,7 +46,7 @@ const AdminPage = () => {
         </TabsList>
         
         <TabsContent value="overview" className="space-y-6">
-          {isLoading ? (
+          {isStatsLoading ? (
             <div>Loading statistics...</div>
           ) : (
             <AdminContent stats={statsData || {}} />

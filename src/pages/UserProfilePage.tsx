@@ -123,13 +123,115 @@ const UserProfilePage: React.FC = () => {
 
   return (
     <div className="container mx-auto py-6 px-4 max-w-5xl">
-      {/* ... keep existing code (user profile header) */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-4">
+          <Avatar className="w-16 h-16">
+            <AvatarImage src={user.avatar} alt={user.name} />
+            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="text-2xl font-bold">{user.name}</h1>
+            <div className="flex items-center space-x-2 text-gray-500">
+              {user.location && (
+                <div className="flex items-center">
+                  <MapPin className="w-4 h-4 mr-1" />
+                  <span>{user.location}</span>
+                </div>
+              )}
+              {user.company && (
+                <div className="flex items-center">
+                  <Briefcase className="w-4 h-4 mr-1" />
+                  <span>{user.company}</span>
+                </div>
+              )}
+              {user.website && (
+                <div className="flex items-center">
+                  <Globe className="w-4 h-4 mr-1" />
+                  <a href={user.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                    Website
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div>
+          {session?.user?.id !== user.id ? (
+            user.isFollowing ? (
+              <Button variant="outline" onClick={handleUnfollow}>Unfollow</Button>
+            ) : (
+              <Button onClick={handleFollow}>Follow</Button>
+            )
+          ) : (
+            <Button asChild>
+              <Link to="/settings">
+                <Settings className="w-4 h-4 mr-2" />
+                <span>Edit Profile</span>
+              </Link>
+            </Button>
+          )}
+        </div>
+      </div>
 
-      {/* ... keep existing code (user profile info) */}
+      <Card className="mb-6">
+        <CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-gray-600 mb-4">{user.bio || 'No bio available.'}</p>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center">
+                  <UserIcon className="w-5 h-5 mr-1" />
+                  <span>{user.role || 'Member'}</span>
+                </div>
+                <div className="flex items-center">
+                  <Calendar className="w-5 h-5 mr-1" />
+                  <span>Joined {format(new Date(user.joinDate || ''), 'MMMM d, yyyy')}</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <Button variant="secondary" onClick={() => handleOpenFollowModal('followers')}>
+                {user.followers} Followers
+              </Button>
+              <Button variant="secondary" className="ml-2" onClick={() => handleOpenFollowModal('following')}>
+                {user.following} Following
+              </Button>
+            </div>
+          </div>
+          <Separator className="my-4" />
+          <div>
+            {/* Display Badges */}
+            {/* <h3 className="text-lg font-semibold mb-2">Badges</h3>
+            <div className="flex items-center space-x-2">
+              <Badge>Early Supporter</Badge>
+              <Badge>Active Contributor</Badge>
+              <Badge>Community Leader</Badge>
+            </div> */}
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* ... keep existing code (tabs) */}
+      <Tabs defaultValue="posts" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="posts">Posts</TabsTrigger>
+          <TabsTrigger value="projects">Projects</TabsTrigger>
+          <TabsTrigger value="events">Events</TabsTrigger>
+        </TabsList>
+        <TabsContent value="posts">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {posts.map(post => (
+              <PostCard key={post.id} post={post} />
+            ))}
+          </div>
+        </TabsContent>
+        <TabsContent value="projects">
+          <div>No projects yet.</div>
+        </TabsContent>
+        <TabsContent value="events">
+          <div>No events yet.</div>
+        </TabsContent>
+      </Tabs>
 
-      {/* User Follow Modal */}
       {showFollowModal && (
         <UserFollowModal 
           isOpen={showFollowModal}
