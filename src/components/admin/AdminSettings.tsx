@@ -135,3 +135,5 @@ export const AdminSettings = () => {
     </Form>
   );
 };
+
+export default AdminSettings;

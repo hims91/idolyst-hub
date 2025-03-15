@@ -52,14 +52,15 @@ const mockFollowing: UserConnection[] = [
   },
 ];
 
-interface UserFollowModalProps {
+export interface UserFollowModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string;
+  userName: string;
   initialTab?: 'followers' | 'following';
 }
 
-const UserFollowModal = ({ isOpen, onClose, userId, initialTab = 'followers' }: UserFollowModalProps) => {
+const UserFollowModal = ({ isOpen, onClose, userId, userName, initialTab = 'followers' }: UserFollowModalProps) => {
   const navigate = useNavigate();
   const [currentTab, setCurrentTab] = React.useState<'followers' | 'following'>(initialTab);
   const [followers, setFollowers] = React.useState<UserConnection[]>([]);

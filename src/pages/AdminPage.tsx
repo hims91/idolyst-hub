@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import AdminContent from '@/components/admin/AdminContent';
-import AdminUsers from '@/components/admin/AdminUsers';
-import AdminSettings from '@/components/admin/AdminSettings';
+import { AdminContent } from '@/components/admin/AdminContent';
+import { AdminUsers } from '@/components/admin/AdminUsers';
+import { AdminSettings } from '@/components/admin/AdminSettings';
 import AdminStats from '@/components/admin/AdminStats';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuthSession } from '@/hooks/useAuthSession';
@@ -11,7 +11,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 const AdminPage: React.FC = () => {
-  const { session } = useAuthSession();
+  const { isValidSession } = useAuthSession();
   const [activeTab, setActiveTab] = useState('content');
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -19,17 +19,19 @@ const AdminPage: React.FC = () => {
   
   useEffect(() => {
     const checkAdminStatus = async () => {
-      if (!session?.user?.id) {
-        setLoading(false);
-        return;
-      }
-      
       try {
+        // Get the current session
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData?.session?.user?.id) {
+          setLoading(false);
+          return;
+        }
+        
         // Fetch user profile to check for admin status
         const { data, error } = await supabase
           .from('profiles')
           .select('role')
-          .eq('id', session.user.id)
+          .eq('id', sessionData.session.user.id)
           .single();
         
         if (error) {
@@ -47,7 +49,7 @@ const AdminPage: React.FC = () => {
     };
     
     checkAdminStatus();
-  }, [session]);
+  }, [isValidSession]);
   
   useEffect(() => {
     // Get stats about the platform

@@ -70,7 +70,7 @@ const PostDetailPage = () => {
       try {
         // In real implementation, fetch from API
         setTimeout(() => {
-          const postData = {...mockPostDetail, comments: []}; // Ensure comments is initialized
+          const postData = {...mockPostDetail, comments: []}; // Ensure comments is initialized as empty array
           setPost(postData);
           setIsLoading(false);
         }, 800);
@@ -248,7 +248,7 @@ const PostDetailPage = () => {
   return (
     <PageTransition>
       <div className="min-h-screen flex flex-col">
-        <Header title={post.title} />
+        <Header title={post?.title || 'Post'} />
         
         <main className="flex-1 container py-6 px-4 md:px-6 max-w-5xl">
           <Button 

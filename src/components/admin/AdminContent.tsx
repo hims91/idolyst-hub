@@ -165,7 +165,7 @@ export const AdminContent = () => {
           {paginatedPosts.items.map(post => (
             <TableRow key={post.id}>
               <TableCell>{post.title}</TableCell>
-              <TableCell>{post.author.name}</TableCell>
+              <TableCell>{typeof post.author === 'string' ? post.author : post.author.name}</TableCell>
               <TableCell>{post.category}</TableCell>
               <TableCell>{post.status}</TableCell>
               <TableCell className="space-x-2">
@@ -187,3 +187,5 @@ export const AdminContent = () => {
     </div>
   );
 };
+
+export default AdminContent;

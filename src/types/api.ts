@@ -1,4 +1,3 @@
-
 import { Badge, Challenge, LeaderboardEntry, UserBadge, UserChallenge } from './gamification';
 
 // General API response types
@@ -177,7 +176,7 @@ export interface Comment {
   timeAgo: string;
   upvotes: number;
   downvotes: number;
-  replies?: Comment[];
+  replies: Comment[];
 }
 
 // User profile types
