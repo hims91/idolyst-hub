@@ -1,192 +1,151 @@
 
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Skeleton } from '@/components/ui/skeleton';
-import UserAvatar from '@/components/ui/UserAvatar';
-import { UserConnection } from '@/types/api';
-
-// Mock data - will be replaced with API calls
-const mockFollowers: UserConnection[] = [
-  {
-    id: 'user1',
-    name: 'John Doe',
-    role: 'Product Manager',
-    avatar: 'https://ui-avatars.com/api/?name=John+Doe',
-    company: 'TechCorp',
-    isFollowing: true,
-  },
-  {
-    id: 'user2',
-    name: 'Jane Smith',
-    role: 'Startup Founder',
-    avatar: 'https://ui-avatars.com/api/?name=Jane+Smith',
-    company: 'SmartStartup',
-    isFollowing: false,
-  },
-];
-
-const mockFollowing: UserConnection[] = [
-  {
-    id: 'user3',
-    name: 'Alex Johnson',
-    role: 'Angel Investor',
-    avatar: 'https://ui-avatars.com/api/?name=Alex+Johnson',
-    company: 'Johnson Ventures',
-    isFollowing: true,
-  },
-  {
-    id: 'user4',
-    name: 'Sarah Chen',
-    role: 'Founder & CEO',
-    avatar: 'https://ui-avatars.com/api/?name=Sarah+Chen',
-    company: 'GrowthGenius',
-    isFollowing: true,
-  },
-];
+import { User } from '@/types/api';
+import { X, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 export interface UserFollowModalProps {
   isOpen: boolean;
-  onClose: () => void;
   userId: string;
+  initialTab: 'followers' | 'following';
   userName: string;
-  initialTab?: 'followers' | 'following';
+  onClose: () => void;
 }
 
-const UserFollowModal = ({ isOpen, onClose, userId, userName, initialTab = 'followers' }: UserFollowModalProps) => {
-  const navigate = useNavigate();
-  const [currentTab, setCurrentTab] = React.useState<'followers' | 'following'>(initialTab);
-  const [followers, setFollowers] = React.useState<UserConnection[]>([]);
-  const [following, setFollowing] = React.useState<UserConnection[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+const UserFollowModal: React.FC<UserFollowModalProps> = ({
+  isOpen,
+  userId,
+  initialTab,
+  userName,
+  onClose
+}) => {
+  const [activeTab, setActiveTab] = useState<'followers' | 'following'>(initialTab);
+  const [followers, setFollowers] = useState<User[]>([]);
+  const [following, setFollowing] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  React.useEffect(() => {
-    const fetchFollowData = async () => {
-      setIsLoading(true);
-      
-      try {
-        // In real implementation, fetch from API based on userId
-        setTimeout(() => {
-          setFollowers(mockFollowers);
-          setFollowing(mockFollowing);
-          setIsLoading(false);
-        }, 800);
-      } catch (error) {
-        console.error('Error fetching follow data:', error);
-        setIsLoading(false);
-      }
-    };
-
+  useEffect(() => {
     if (isOpen) {
-      fetchFollowData();
+      fetchConnections();
     }
-  }, [isOpen, userId]);
+  }, [isOpen, userId, activeTab]);
 
-  const toggleFollow = (user: UserConnection) => {
-    // Update the user's follow status in the appropriate list
-    if (currentTab === 'followers') {
-      setFollowers(followers.map(f => 
-        f.id === user.id ? { ...f, isFollowing: !f.isFollowing } : f
-      ));
-    } else {
-      setFollowing(following.map(f => 
-        f.id === user.id ? { ...f, isFollowing: !f.isFollowing } : f
-      ));
+  const fetchConnections = async () => {
+    setIsLoading(true);
+    try {
+      // Implement actual data fetching here
+      const data = Array(5).fill(null).map((_, i) => ({
+        id: `user-${i}`,
+        name: `Test User ${i}`,
+        role: 'Developer',
+        email: `test${i}@example.com`,
+        avatar: undefined
+      }));
+      
+      if (activeTab === 'followers') {
+        setFollowers(data);
+      } else {
+        setFollowing(data);
+      }
+    } catch (error) {
+      console.error(`Error fetching ${activeTab}:`, error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const navigateToProfile = (userId: string) => {
-    navigate(`/user/${userId}`);
-    onClose();
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as 'followers' | 'following');
   };
 
-  const renderUserList = (users: UserConnection[]) => {
-    if (isLoading) {
-      return Array(3).fill(0).map((_, i) => (
-        <div key={i} className="flex items-center justify-between p-3 border-b last:border-0">
-          <div className="flex items-center space-x-3">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <div>
-              <Skeleton className="h-4 w-24 mb-1" />
-              <Skeleton className="h-3 w-16" />
-            </div>
-          </div>
-          <Skeleton className="h-8 w-16" />
-        </div>
-      ));
-    }
-
-    if (users.length === 0) {
-      return (
-        <div className="text-center py-8 text-muted-foreground">
-          No users found.
-        </div>
-      );
-    }
-
-    return users.map(user => (
-      <div key={user.id} className="flex items-center justify-between p-3 border-b last:border-0">
-        <div 
-          className="flex items-center space-x-3 cursor-pointer"
-          onClick={() => navigateToProfile(user.id)}
-        >
-          <UserAvatar name={user.name} src={user.avatar} size="md" />
-          <div>
-            <h4 className="font-medium">{user.name}</h4>
-            <p className="text-xs text-muted-foreground">
-              {user.role}{user.company ? ` at ${user.company}` : ''}
-            </p>
-          </div>
-        </div>
-        <Button 
-          variant={user.isFollowing ? "outline" : "default"}
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFollow(user);
-          }}
-        >
-          {user.isFollowing ? 'Following' : 'Follow'}
-        </Button>
-      </div>
-    ));
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
   };
+
+  const filteredUsers = activeTab === 'followers' 
+    ? followers.filter(user => user.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    : following.filter(user => user.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Connections</DialogTitle>
+          <DialogTitle className="text-center">
+            {userName}'s {activeTab === 'followers' ? 'Followers' : 'Following'}
+          </DialogTitle>
         </DialogHeader>
         
-        <Tabs 
-          defaultValue={initialTab} 
-          value={currentTab}
-          onValueChange={(value) => setCurrentTab(value as 'followers' | 'following')}
-          className="w-full"
-        >
-          <TabsList className="grid grid-cols-2">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="followers">Followers</TabsTrigger>
             <TabsTrigger value="following">Following</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="followers" className="max-h-[50vh] overflow-y-auto">
-            {renderUserList(followers)}
+          <div className="relative my-4">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Input
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={handleSearch}
+              className="pl-9"
+            />
+          </div>
+          
+          <TabsContent value="followers" className="space-y-4">
+            {isLoading ? (
+              <div className="text-center py-8">Loading...</div>
+            ) : filteredUsers.length > 0 ? (
+              filteredUsers.map(user => (
+                <UserCard key={user.id} user={user} />
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                {searchQuery ? 'No users match your search' : 'No followers yet'}
+              </div>
+            )}
           </TabsContent>
           
-          <TabsContent value="following" className="max-h-[50vh] overflow-y-auto">
-            {renderUserList(following)}
+          <TabsContent value="following" className="space-y-4">
+            {isLoading ? (
+              <div className="text-center py-8">Loading...</div>
+            ) : filteredUsers.length > 0 ? (
+              filteredUsers.map(user => (
+                <UserCard key={user.id} user={user} />
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                {searchQuery ? 'No users match your search' : 'Not following anyone yet'}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>
+  );
+};
+
+const UserCard: React.FC<{ user: User }> = ({ user }) => {
+  return (
+    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+      <div className="flex items-center">
+        <Avatar className="h-10 w-10 mr-3">
+          <AvatarImage src={user.avatar} alt={user.name} />
+          <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <div>
+          <div className="font-medium">{user.name}</div>
+          <div className="text-sm text-gray-500">{user.role}</div>
+        </div>
+      </div>
+      <Button variant="outline" size="sm">
+        {user.isFollowing ? 'Unfollow' : 'Follow'}
+      </Button>
+    </div>
   );
 };
 

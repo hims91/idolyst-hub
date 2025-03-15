@@ -260,6 +260,7 @@ export const joinChallenge = async (userId: string, challengeId: string): Promis
  */
 export const getLeaderboard = async (limit = 10): Promise<LeaderboardEntry[]> => {
   try {
+    // Query user stats and join with profiles table
     const { data, error } = await supabase
       .from('user_stats')
       .select(`
@@ -269,7 +270,7 @@ export const getLeaderboard = async (limit = 10): Promise<LeaderboardEntry[]> =>
         badge_count,
         challenge_count,
         rank,
-        profiles (
+        profiles:user_id (
           name,
           avatar
         )
@@ -282,17 +283,22 @@ export const getLeaderboard = async (limit = 10): Promise<LeaderboardEntry[]> =>
       return [];
     }
     
-    return data?.map((item, index) => ({
-      id: item.user_id,
-      name: item.profiles?.name || 'Anonymous User',
-      avatar: item.profiles?.avatar,
-      points: item.points,
-      level: item.level,
-      badgeCount: item.badge_count,
-      challengeCount: item.challenge_count,
-      // If rank is 0 (not set), use the position in the results
-      rank: item.rank || index + 1
-    })) || [];
+    return data?.map((item, index) => {
+      // Handle the profiles data safely
+      const profile = item.profiles as any || {};
+      
+      return {
+        id: item.user_id,
+        name: profile.name || 'Anonymous User',
+        avatar: profile.avatar,
+        points: item.points,
+        level: item.level,
+        badgeCount: item.badge_count,
+        challengeCount: item.challenge_count,
+        // If rank is 0 (not set), use the position in the results
+        rank: item.rank || index + 1
+      };
+    }) || [];
   } catch (error) {
     console.error('Error in getLeaderboard:', error);
     return [];

@@ -14,44 +14,7 @@ import { User, Post } from '@/types/api';
 import { MapPin, Briefcase, Globe, Calendar, Award, Settings, User as UserIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { supabase } from '@/integrations/supabase/client';
-
-const getUser = async (userId: string): Promise<User | null> => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
-  
-  if (error) {
-    console.error('Error fetching user:', error);
-    return null;
-  }
-  
-  return data as User;
-};
-
-const followUser = async (userId: string): Promise<boolean> => {
-  console.log('Following user:', userId);
-  return true;
-};
-
-const unfollowUser = async (userId: string): Promise<boolean> => {
-  console.log('Unfollowing user:', userId);
-  return true;
-};
-
-const getUserPosts = async (userId: string): Promise<Post[]> => {
-  return [];
-};
-
-const getUserFollowers = async (userId: string): Promise<User[]> => {
-  return [];
-};
-
-const getUserFollowing = async (userId: string): Promise<User[]> => {
-  return [];
-};
+import userService from '@/services/userService';
 
 const ProfileTab: React.FC<{ user: User; currentTab: string }> = ({ user, currentTab }) => {
   return <div>{/* Profile tab content */}</div>;
@@ -61,6 +24,7 @@ const UserProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { session } = useAuthSession();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,14 +33,14 @@ const UserProfilePage: React.FC = () => {
   const [showFollowModal, setShowFollowModal] = useState(false);
 
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchUserData = async () => {
       if (!userId) return;
       
       setLoading(true);
       setError(null);
       
       try {
-        const userData = await getUser(userId);
+        const userData = await userService.getUser(userId);
         if (!userData) {
           setError('User not found');
           setLoading(false);
@@ -85,7 +49,7 @@ const UserProfilePage: React.FC = () => {
         
         setUser(userData);
         
-        const userPosts = await getUserPosts(userId);
+        const userPosts = await userService.getUserPosts(userId);
         setPosts(userPosts);
         
         setLoading(false);
@@ -95,14 +59,14 @@ const UserProfilePage: React.FC = () => {
       }
     };
     
-    fetchUser();
+    fetchUserData();
   }, [userId]);
 
   const handleFollow = async () => {
-    if (!user) return;
+    if (!user || !session?.user?.id) return;
     
     try {
-      const success = await followUser(user.id);
+      const success = await userService.followUser(session.user.id, user.id);
       if (success) {
         setUser(prev => prev ? { ...prev, isFollowing: true } : null);
         toast({
@@ -120,10 +84,10 @@ const UserProfilePage: React.FC = () => {
   };
 
   const handleUnfollow = async () => {
-    if (!user) return;
+    if (!user || !session?.user?.id) return;
     
     try {
-      const success = await unfollowUser(user.id);
+      const success = await userService.unfollowUser(session.user.id, user.id);
       if (success) {
         setUser(prev => prev ? { ...prev, isFollowing: false } : null);
         toast({

@@ -1,149 +1,61 @@
-
-import React, { useState, useEffect } from 'react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import React, { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useRequireAuth } from '@/hooks/use-auth-route';
 import { AdminContent } from '@/components/admin/AdminContent';
 import { AdminUsers } from '@/components/admin/AdminUsers';
 import { AdminSettings } from '@/components/admin/AdminSettings';
-import AdminStats from '@/components/admin/AdminStats';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuthSession } from '@/hooks/useAuthSession';
-import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { adminService } from '@/services/api/admin';
+import { useQuery } from '@tanstack/react-query';
 
-const AdminPage: React.FC = () => {
-  const { isValidSession } = useAuthSession();
-  const [activeTab, setActiveTab] = useState('content');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+const AdminPage = () => {
+  const { isValidSession } = useRequireAuth({ requiredRole: 'admin' });
   
-  useEffect(() => {
-    const checkAdminStatus = async () => {
-      try {
-        // Get the current session
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData?.session?.user?.id) {
-          setLoading(false);
-          return;
-        }
-        
-        // Fetch user profile to check for admin status
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', sessionData.session.user.id)
-          .single();
-        
-        if (error) {
-          console.error('Error fetching admin status:', error);
-          setIsAdmin(false);
-        } else {
-          setIsAdmin(data?.role === 'admin');
-        }
-      } catch (error) {
-        console.error('Error in admin check:', error);
-        setIsAdmin(false);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkAdminStatus();
-  }, [isValidSession]);
+  const [activeTab, setActiveTab] = useState('overview');
   
-  useEffect(() => {
-    // Get stats about the platform
-    const fetchPlatformStats = async () => {
-      try {
-        // Get post count
-        const { count: postCount } = await supabase
-          .from('posts')
-          .select('id', { count: 'exact', head: true });
-        
-        // Get user count
-        const { count: userCount } = await supabase
-          .from('profiles')
-          .select('id', { count: 'exact', head: true });
-        
-        console.log('Platform Stats:', { postCount, userCount });
-      } catch (error) {
-        console.error('Error fetching platform stats:', error);
-      }
-    };
-    
-    if (isAdmin && !loading) {
-      fetchPlatformStats();
-    }
-  }, [isAdmin, loading]);
-  
-  if (loading) {
+  const { data: statsData, isLoading } = useQuery({
+    queryKey: ['admin', 'stats'],
+    queryFn: () => adminService.getAdminStats(),
+    enabled: isValidSession,
+  });
+
+  if (!isValidSession) {
     return (
-      <div className="container mx-auto py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Admin Dashboard</CardTitle>
-            <CardDescription>Loading...</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-32 flex items-center justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-  
-  if (!isAdmin) {
-    return (
-      <div className="container mx-auto py-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>You don't have permission to access the admin dashboard.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p>Please contact an administrator if you believe this is an error.</p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
+          <p className="mb-4">You don't have permission to access this page.</p>
+        </div>
       </div>
     );
   }
   
   return (
-    <div className="container mx-auto py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Admin Dashboard</CardTitle>
-          <CardDescription>Manage your platform</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-4 mb-8">
-              <TabsTrigger value="content">Content</TabsTrigger>
-              <TabsTrigger value="users">Users</TabsTrigger>
-              <TabsTrigger value="stats">Stats</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="content">
-              <AdminContent />
-            </TabsContent>
-            
-            <TabsContent value="users">
-              <AdminUsers />
-            </TabsContent>
-            
-            <TabsContent value="stats">
-              <AdminStats />
-            </TabsContent>
-            
-            <TabsContent value="settings">
-              <AdminSettings />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+    <div className="container mx-auto py-6 px-4 max-w-7xl">
+      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+      
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid grid-cols-3 max-w-md">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="overview" className="space-y-6">
+          {isLoading ? (
+            <div>Loading statistics...</div>
+          ) : (
+            <AdminContent stats={statsData || {}} />
+          )}
+        </TabsContent>
+        
+        <TabsContent value="users" className="space-y-6">
+          <AdminUsers />
+        </TabsContent>
+        
+        <TabsContent value="settings" className="space-y-6">
+          <AdminSettings />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
