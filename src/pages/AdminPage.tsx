@@ -43,21 +43,22 @@ const AdminPage = () => {
     queryFn: async () => {
       // Fetch counts for high-level statistics
       const [
-        { count: usersCount },
-        { count: postsCount },
-        { count: commentsCount }
+        usersCount,
+        postsCount,
+        commentsCount
       ] = await Promise.all([
-        supabase.from('profiles').select('*', { count: 'exact', head: true }),
+        // Since we don't have access to auth.users directly, estimate based on posts
+        supabase.from('posts').select('user_id', { count: 'exact', head: true }).then(res => ({ count: res.count })),
         supabase.from('posts').select('*', { count: 'exact', head: true }),
         supabase.from('comments').select('*', { count: 'exact', head: true })
       ]);
       
-      // For new users in last 7 days
+      // For new users in last 7 days (estimated)
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       const { count: newUsersCount } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true })
+        .from('posts')
+        .select('user_id', { count: 'exact', head: true, distinct: true })
         .gte('created_at', oneWeekAgo.toISOString());
       
       // For active users (those with activity in last 30 days)
@@ -65,22 +66,22 @@ const AdminPage = () => {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const { count: activeUsersCount } = await supabase
         .from('posts')
-        .select('user_id', { count: 'exact', head: true })
+        .select('user_id', { count: 'exact', head: true, distinct: true })
         .gte('created_at', thirtyDaysAgo.toISOString());
       
       const stats: AdminStats = {
         users: {
-          total: usersCount || 0,
+          total: usersCount.count || 0,
           new: newUsersCount || 0,
           active: activeUsersCount || 0
         },
         content: {
-          posts: postsCount || 0,
-          comments: commentsCount || 0
+          posts: postsCount.count || 0,
+          comments: commentsCount.count || 0
         },
         engagement: {
           upvotes: 0, // Would need a separate count query
-          comments: commentsCount || 0,
+          comments: commentsCount.count || 0,
           shares: 0
         },
         gamification: {

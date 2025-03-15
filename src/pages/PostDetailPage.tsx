@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { PostDetail as PostDetailType } from '@/types/api';
+import { PostDetail as PostDetailType, Comment } from '@/types/api';
 
 // Mock data for now - will be replaced with real API calls
 const mockPostDetail: PostDetailType = {
@@ -51,6 +51,7 @@ const mockPostDetail: PostDetailType = {
   shares: 89,
   isSaved: false,
   isVoted: null,
+  comments: [], // Initialize with empty array to avoid undefined
 };
 
 const PostDetailPage = () => {
@@ -69,7 +70,8 @@ const PostDetailPage = () => {
       try {
         // In real implementation, fetch from API
         setTimeout(() => {
-          setPost(mockPostDetail);
+          const postData = {...mockPostDetail, comments: []}; // Ensure comments is initialized
+          setPost(postData);
           setIsLoading(false);
         }, 800);
       } catch (err) {
@@ -143,43 +145,53 @@ const PostDetailPage = () => {
     });
   };
 
-  const handleAddComment = async (content: string, parentId?: string) => {
+  const handleAddComment = async (content: string, parentId?: string): Promise<void> => {
     if (!post) return;
     
-    const newComment = {
+    const newComment: Comment = {
       id: `comment-${Date.now()}`,
       content,
       author: {
         id: 'currentUser',
         name: 'Current User',
+        role: 'User',
         avatar: 'https://ui-avatars.com/api/?name=Current+User',
       },
       createdAt: new Date().toISOString(),
       timeAgo: 'just now',
       upvotes: 0,
       downvotes: 0,
-      replies: [],
+      replies: [], // Initialize with empty array
     };
     
     setPost(prev => {
       if (!prev) return prev;
       
-      return {
-        ...prev,
-        commentCount: prev.commentCount + 1,
-        comments: prev.comments 
-          ? parentId 
-            ? prev.comments.map(comment => 
-                comment.id === parentId 
-                  ? { ...comment, replies: [...(comment.replies || []), newComment] } 
-                  : comment
-              )
-            : [...prev.comments, newComment]
-          : [newComment]
-      };
+      // Make sure comments is initialized
+      const currentComments = prev.comments || [];
+      
+      if (parentId) {
+        // Add reply to parent comment
+        const updatedComments = currentComments.map(comment => 
+          comment.id === parentId 
+            ? { ...comment, replies: [...(comment.replies || []), newComment] } 
+            : comment
+        );
+        
+        return {
+          ...prev,
+          commentCount: prev.commentCount + 1,
+          comments: updatedComments
+        };
+      } else {
+        // Add new top-level comment
+        return {
+          ...prev,
+          commentCount: prev.commentCount + 1,
+          comments: [...currentComments, newComment]
+        };
+      }
     });
-    
-    return newComment;
   };
 
   if (isLoading) {

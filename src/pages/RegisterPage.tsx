@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useAuth } from '@/context/AuthContext';
-import { RegisterData } from '@/services/api';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import PageTransition from '@/components/layout/PageTransition';
@@ -31,6 +30,13 @@ const formSchema = z.object({
 });
 
 type RegisterFormData = z.infer<typeof formSchema>;
+
+// Define RegisterData type here since we can't import it from /services/api
+interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+}
 
 const RegisterPage = () => {
   const navigate = useNavigate();

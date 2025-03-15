@@ -1,8 +1,7 @@
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { decode } from 'https://deno.land/std@0.168.0/encoding/base32.ts'
-import * as TOTP from 'https://deno.land/x/etotp@v1.0.0/mod.ts'
+import { serve } from 'https://deno.land/std@0.188.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { decode } from 'https://deno.land/std@0.188.0/encoding/base32.ts'
 
 // CORS headers
 const corsHeaders = {
@@ -11,7 +10,7 @@ const corsHeaders = {
 }
 
 // Helper to create a Supabase client using the auth token
-const getSupabaseClient = (req: Request): SupabaseClient => {
+const getSupabaseClient = (req: Request) => {
   const authHeader = req.headers.get('Authorization')
   const apiKey = Deno.env.get('SUPABASE_ANON_KEY')!
   const url = Deno.env.get('SUPABASE_URL')!
@@ -31,19 +30,6 @@ const generateTOTPSecret = (): string => {
     secret += chars.charAt(Math.floor(Math.random() * chars.length))
   }
   return secret
-}
-
-// Verify a TOTP code
-const verifyTOTP = (secret: string, token: string): boolean => {
-  try {
-    // Decode the base32 secret
-    const keyBytes = decode(secret)
-    const totp = new TOTP.TOTP(keyBytes)
-    return totp.verify(token)
-  } catch (error) {
-    console.error('TOTP verification error:', error)
-    return false
-  }
 }
 
 serve(async (req: Request) => {
@@ -96,8 +82,16 @@ serve(async (req: Request) => {
         throw new Error(`2FA not set up for this user: ${error?.message}`)
       }
 
-      // Verify the code
-      const isValid = verifyTOTP(data.secret, code)
+      // Call the RPC function to verify the TOTP code
+      const { data: isValid, error: verifyError } = await supabase
+        .rpc('verify_totp', { 
+          user_uuid: userId,
+          otp_code: code
+        });
+
+      if (verifyError) {
+        throw new Error(`Failed to verify code: ${verifyError.message}`);
+      }
 
       if (isValid) {
         // If verifying during setup, mark as enabled

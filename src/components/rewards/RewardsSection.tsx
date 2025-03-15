@@ -18,7 +18,7 @@ const RewardsSection: React.FC<RewardsSectionProps> = ({ type }) => {
   }
 
   if (type === 'challenges') {
-    return <ChallengesSection />;
+    return <ChallengesSection type={type} />;
   }
   
   return null;

@@ -12,7 +12,8 @@ export interface Badge {
 export interface UserBadge {
   id: string;
   userId: string;
-  badge: Badge;
+  badgeId: string; // Reference to badge
+  badge?: Badge; // Joined badge data
   earnedAt: string;
 }
 
@@ -31,7 +32,8 @@ export interface Challenge {
 export interface UserChallenge {
   id: string;
   userId: string;
-  challenge: Challenge;
+  challengeId: string; // Reference to challenge
+  challenge?: Challenge; // Joined challenge data
   progress: number;
   isCompleted: boolean;
   joinedAt: string;
@@ -60,10 +62,12 @@ export interface LeaderboardEntry {
 }
 
 export interface UserGamificationStats {
+  userId: string;
   points: number;
   level: number;
   badgeCount: number;
   challengeCount: number;
   completedChallengeCount: number;
   rank: number;
+  updatedAt?: string;
 }

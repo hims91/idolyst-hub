@@ -1,520 +1,453 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import Header from '@/components/layout/Header';
 import PageTransition from '@/components/layout/PageTransition';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { PostCard } from '@/components/ui/PostCard';
 import { useToast } from '@/components/ui/use-toast';
-import { ArrowLeft, Users, Mail, Link, Calendar, MapPin, Award, Building, AlertCircle } from 'lucide-react';
-import UserAvatar from '@/components/ui/UserAvatar';
-import PostCard from '@/components/ui/PostCard';
-import { Post, ProfileData } from '@/types/api';
+import { User } from '@/services/api/types';
+import { motion } from 'framer-motion';
+import UserFollowModal from '@/components/user/UserFollowModal';
+import { CalendarDays, GlobeIcon, Twitter, Linkedin, Github, MapPin, Building, Users, Award, Activity } from 'lucide-react';
 
-// Mock data - replace with API calls
-const mockUserProfile: ProfileData = {
-  id: 'user1',
-  name: 'Sarah Chen',
+// Mock user data
+const mockUserData: User = {
+  id: 'user-1',
+  name: 'Alex Johnson',
   role: 'Founder & CEO',
-  avatar: 'https://ui-avatars.com/api/?name=Sarah+Chen',
-  bio: 'Serial entrepreneur with a passion for SaaS and B2B solutions. Previously founded and sold two startups in the marketing tech space.',
-  company: 'GrowthGenius',
+  avatar: '/images/avatars/alex.jpg',
+  email: 'alex@technova.io',
+  company: 'TechNova Solutions',
+  bio: 'Serial entrepreneur with 10+ years experience in SaaS and AI.',
   location: 'San Francisco, CA',
-  website: 'https://sarahchen.io',
-  joinDate: '2022-09-15T00:00:00Z',
-  followers: 1280,
-  following: 350,
-  posts: 24,
-  socialLinks: {
-    twitter: 'https://twitter.com/sarahchen',
-    linkedin: 'https://linkedin.com/in/sarahchen',
-    github: 'https://github.com/sarahchen'
-  },
-  skills: ['SaaS', 'Growth Marketing', 'Product Strategy', 'Fundraising', 'Team Building'],
+  website: 'technova.io',
+  joinDate: 'Jan 2023',
   badges: [
-    { 
-      id: 'badge1', 
-      name: 'Top Contributor', 
-      description: 'Awarded to users whose content consistently receives high engagement',
-      icon: 'award', 
-      category: 'achievement' 
-    },
-    { 
-      id: 'badge2', 
-      name: 'Thought Leader', 
-      description: 'Recognized for sharing valuable industry insights',
-      icon: 'lightbulb', 
-      category: 'expertise' 
-    }
+    { id: 'badge-1', name: 'Verified Founder', icon: 'user' },
+    { id: 'badge-2', name: 'Top Contributor', icon: 'award' }
   ],
-  isFollowing: false
+  skills: ['AI/ML', 'Growth Strategy', 'Fundraising'],
+  followers: 1420,
+  following: 358,
+  posts: 47,
+  startups: 3,
+  investments: 12,
+  socialLinks: {
+    twitter: 'alexjtechceo',
+    linkedin: 'alexjohnson',
+    github: 'alexjtech',
+  },
+  isFollowing: false,
 };
 
-const mockUserPosts: Post[] = [
+// Mock posts data
+const mockPosts = [
   {
-    id: '1',
-    title: 'How I scaled my SaaS startup to 10,000 users in 6 months',
-    content: 'When I first launched my SaaS product, I had no idea if anyone would use it...',
-    author: {
-      id: 'user1',
-      name: 'Sarah Chen',
-      role: 'Founder & CEO',
-      avatar: 'https://ui-avatars.com/api/?name=Sarah+Chen',
-    },
-    category: 'Growth Strategies',
-    upvotes: 247,
-    downvotes: 5,
-    commentCount: 42,
+    id: 'post-1',
+    title: 'How I built a 7-figure SaaS with zero funding',
+    excerpt: 'Bootstrapping in the early stages forced us to focus on revenue, not vanity metrics...',
+    upvotes: 342,
+    comments: 56,
     timeAgo: '2d ago',
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    tags: ['saas', 'growth', 'marketing'],
+    author: { name: 'Alex Johnson', avatar: '/images/avatars/alex.jpg', role: 'Founder & CEO' },
+    tags: ['saas', 'bootstrapping', 'entrepreneurship'],
+    saved: false,
   },
   {
-    id: '2',
-    title: 'Lessons from raising our $2M seed round',
-    content: 'After 30+ investor meetings and countless pitch deck revisions...',
-    author: {
-      id: 'user1',
-      name: 'Sarah Chen',
-      role: 'Founder & CEO',
-      avatar: 'https://ui-avatars.com/api/?name=Sarah+Chen',
-    },
-    category: 'Funding',
-    upvotes: 189,
-    downvotes: 2,
-    commentCount: 28,
+    id: 'post-2',
+    title: 'Three mistakes I made raising our Series A',
+    excerpt: 'In hindsight, I would have approached the fundraising process differently...',
+    upvotes: 289,
+    comments: 42,
     timeAgo: '1w ago',
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    tags: ['fundraising', 'venture-capital', 'pitching'],
-  }
+    author: { name: 'Alex Johnson', avatar: '/images/avatars/alex.jpg', role: 'Founder & CEO' },
+    tags: ['fundraising', 'venture-capital', 'startups'],
+    saved: false,
+  },
 ];
 
 const UserProfilePage = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
-  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+  const [user, setUser] = useState<User | null>(null);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('posts');
+  const [showFollowModal, setShowFollowModal] = useState<'followers' | 'following' | null>(null);
+  
   useEffect(() => {
     const fetchUserProfile = async () => {
-      setIsLoadingProfile(true);
-      setError(null);
+      setIsLoading(true);
       
       try {
-        // In real implementation, fetch from API using userId
+        // In real implementation, fetch from API based on userId
         setTimeout(() => {
-          setProfile(mockUserProfile);
-          setIsLoadingProfile(false);
+          setUser(mockUserData);
+          setPosts(mockPosts);
+          setIsLoading(false);
         }, 800);
-      } catch (err) {
-        setError('Failed to load user profile. Please try again.');
-        setIsLoadingProfile(false);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load user profile',
+          variant: 'destructive',
+        });
+        setIsLoading(false);
       }
     };
-
-    const fetchUserPosts = async () => {
-      setIsLoadingPosts(true);
-      
-      try {
-        // In real implementation, fetch from API using userId
-        setTimeout(() => {
-          setPosts(mockUserPosts);
-          setIsLoadingPosts(false);
-        }, 1000);
-      } catch (err) {
-        console.error('Error fetching user posts:', err);
-        setIsLoadingPosts(false);
-      }
-    };
-
-    if (userId) {
-      fetchUserProfile();
-      fetchUserPosts();
+    
+    fetchUserProfile();
+  }, [userId, toast]);
+  
+  const handleFollow = async () => {
+    if (!user) return;
+    
+    setIsFollowLoading(true);
+    
+    try {
+      // In real implementation, call an API to follow user
+      setTimeout(() => {
+        setUser(prev => {
+          if (!prev) return prev;
+          
+          // Update following state and counts
+          return {
+            ...prev,
+            isFollowing: !prev.isFollowing,
+            followers: prev.isFollowing ? prev.followers! - 1 : prev.followers! + 1,
+          };
+        });
+        
+        toast({
+          title: user.isFollowing ? 'Unfollowed' : 'Followed',
+          description: user.isFollowing 
+            ? `You unfollowed ${user.name}` 
+            : `You are now following ${user.name}`,
+        });
+        
+        setIsFollowLoading(false);
+      }, 600);
+    } catch (error) {
+      console.error('Error following user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update follow status',
+        variant: 'destructive',
+      });
+      setIsFollowLoading(false);
     }
-  }, [userId]);
-
-  const handleFollowToggle = () => {
-    if (!profile) return;
-    
-    const wasFollowing = profile.isFollowing;
-    
-    // Update local state
-    setProfile(prev => {
-      if (!prev) return prev;
-      
-      return {
-        ...prev,
-        isFollowing: !prev.isFollowing,
-        followers: prev.isFollowing ? prev.followers - 1 : prev.followers + 1
-      };
-    });
-    
-    // Show toast
-    toast({
-      title: wasFollowing ? 'Unfollowed' : 'Following',
-      description: wasFollowing 
-        ? `You are no longer following ${profile.name}` 
-        : `You are now following ${profile.name}`,
-    });
-    
-    // In real implementation, send API request to follow/unfollow
   };
-
-  const handleSendMessage = () => {
-    if (!profile) return;
+  
+  const handleSavePost = (postId: string) => {
+    setPosts(prev => 
+      prev.map(post => 
+        post.id === postId ? { ...post, saved: !post.saved } : post
+      )
+    );
     
-    // In real implementation, navigate to chat/message page
+    const post = posts.find(p => p.id === postId);
     toast({
-      title: 'Message feature',
-      description: `Messaging ${profile.name} is not implemented yet.`,
+      title: post?.saved ? 'Post removed' : 'Post saved',
+      description: post?.saved 
+        ? 'Post removed from your saved items' 
+        : 'Post added to your saved items',
     });
   };
-
-  if (isLoadingProfile) {
+  
+  if (isLoading) {
     return (
       <PageTransition>
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen">
           <Header title="User Profile" />
-          
-          <main className="flex-1 container py-6 px-4 max-w-5xl">
-            <Button 
-              variant="ghost" 
-              className="mb-6"
-              onClick={() => navigate(-1)}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Button>
-            
-            <Card className="overflow-hidden">
-              <div className="h-40 bg-gradient-to-r from-blue-500 to-purple-500" />
-              
-              <div className="relative px-6">
-                <div className="flex flex-col md:flex-row gap-6 items-start md:items-end -mt-12">
-                  <Skeleton className="h-24 w-24 rounded-full border-4 border-background" />
-                  
-                  <div className="space-y-1 flex-1 pt-4 md:pt-0">
-                    <Skeleton className="h-8 w-48" />
-                    <Skeleton className="h-4 w-24" />
-                  </div>
-                </div>
-              </div>
-              
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="md:col-span-2 space-y-4">
-                    <div>
-                      <h3 className="font-medium mb-2">Bio</h3>
-                      <Skeleton className="h-20 w-full" />
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Skeleton className="h-8 w-full" />
-                      <Skeleton className="h-8 w-full" />
-                    </div>
-
-                    <div className="mt-6">
-                      <h3 className="font-medium mb-3">Badges & Achievements</h3>
-                      <div className="flex flex-wrap gap-2">
-                        <Skeleton className="h-16 w-24" />
-                        <Skeleton className="h-16 w-24" />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <Card>
-                      <CardContent className="py-4">
-                        <Skeleton className="h-24 w-full" />
-                      </CardContent>
-                    </Card>
-                    
-                    <Card>
-                      <CardContent className="py-4">
-                        <Skeleton className="h-16 w-full" />
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </main>
+          <div className="container py-6 px-4 max-w-5xl">
+            <div className="flex flex-col items-center justify-center h-64">
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-4"></div>
+              <p className="text-muted-foreground">Loading user profile...</p>
+            </div>
+          </div>
         </div>
       </PageTransition>
     );
   }
-
-  if (error || !profile) {
+  
+  if (!user) {
     return (
       <PageTransition>
-        <div className="min-h-screen flex flex-col">
-          <Header title="User Profile" />
-          
-          <main className="flex-1 container py-6 px-4 max-w-5xl">
+        <div className="min-h-screen">
+          <Header title="User Not Found" />
+          <div className="container py-6 px-4 max-w-5xl">
             <div className="flex flex-col items-center justify-center h-64 text-center">
-              <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
               <h2 className="text-2xl font-bold mb-2">User Not Found</h2>
               <p className="text-muted-foreground mb-6">
-                {error || "We couldn't find the user you're looking for."}
+                The user you're looking for doesn't exist or has been removed.
               </p>
-              <Button onClick={() => navigate('/')}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Home
-              </Button>
+              <Button onClick={() => navigate('/')}>Back to Home</Button>
             </div>
-          </main>
+          </div>
         </div>
       </PageTransition>
     );
   }
-
+  
   return (
     <PageTransition>
-      <div className="min-h-screen flex flex-col">
-        <Header title={profile.name} />
+      <div className="min-h-screen">
+        <Header title={user.name} />
         
-        <main className="flex-1 container py-6 px-4 max-w-5xl">
-          <Button 
-            variant="ghost" 
-            className="mb-6"
-            onClick={() => navigate(-1)}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Card className="overflow-hidden">
-              <div className="relative h-40 bg-gradient-to-r from-blue-500 to-purple-500">
-                <div className="absolute right-4 top-4 flex gap-2">
-                  <Button 
-                    variant={profile.isFollowing ? "default" : "outline"} 
-                    className="bg-background/80 backdrop-blur-sm hover:bg-background/90"
-                    onClick={handleFollowToggle}
-                  >
-                    {profile.isFollowing ? 'Following' : 'Follow'}
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    className="bg-background/80 backdrop-blur-sm hover:bg-background/90"
-                    onClick={handleSendMessage}
-                  >
-                    Message
-                  </Button>
-                </div>
-              </div>
+        <main className="container py-6 px-4 max-w-5xl">
+          <div className="w-full border-b pb-6 mb-6">
+            <div className="flex flex-col md:flex-row gap-6 md:items-end">
+              <Avatar className="h-20 w-20 md:h-24 md:w-24 border-4 border-background">
+                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
+              </Avatar>
               
-              <div className="relative px-6">
-                <div className="flex flex-col md:flex-row gap-6 items-start md:items-end -mt-12">
-                  <UserAvatar 
-                    name={profile.name} 
-                    src={profile.avatar}
-                    size="xl"
-                    className="border-4 border-background relative"
-                  />
+              <div className="flex-1">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <h1 className="text-2xl font-bold">{user.name}</h1>
+                    <p className="text-muted-foreground">{user.role}</p>
+                  </div>
                   
-                  <div className="space-y-1 flex-1 pt-4 md:pt-0">
-                    <h2 className="text-2xl md:text-3xl font-bold">{profile.name}</h2>
-                    <p className="text-muted-foreground">{profile.role}</p>
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      onClick={handleFollow}
+                      disabled={isFollowLoading}
+                      variant={user.isFollowing ? "outline" : "default"}
+                    >
+                      {isFollowLoading ? (
+                        <span className="flex items-center">
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Processing...
+                        </span>
+                      ) : user.isFollowing ? 'Unfollow' : 'Follow'}
+                    </Button>
+                    
+                    <Button variant="outline">Message</Button>
+                    <Button variant="ghost" size="icon">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                      </svg>
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap gap-4 mt-4">
+                  {user.badges?.map(badge => (
+                    <Badge key={badge.id} variant="secondary" className="flex items-center gap-1">
+                      <Award className="h-3.5 w-3.5" />
+                      {badge.name}
+                    </Badge>
+                  ))}
+                </div>
+                
+                <div className="flex flex-wrap gap-8 mt-4">
+                  <div 
+                    className="flex items-center cursor-pointer hover:text-primary transition-colors" 
+                    onClick={() => setShowFollowModal('followers')}
+                  >
+                    <span className="font-bold mr-1">{user.followers}</span> 
+                    Followers
+                  </div>
+                  <div 
+                    className="flex items-center cursor-pointer hover:text-primary transition-colors"
+                    onClick={() => setShowFollowModal('following')}
+                  >
+                    <span className="font-bold mr-1">{user.following}</span> 
+                    Following
+                  </div>
+                  <div className="flex items-center">
+                    <span className="font-bold mr-1">{user.posts}</span> 
+                    Posts
+                  </div>
+                  <div className="flex items-center">
+                    <span className="font-bold mr-1">{user.startups}</span> 
+                    Startups
+                  </div>
+                  <div className="flex items-center">
+                    <span className="font-bold mr-1">{user.investments}</span> 
+                    Investments
                   </div>
                 </div>
               </div>
-              
-              <CardContent className="pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <div className="md:col-span-2 space-y-4">
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-1">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="space-y-4">
                     <div>
-                      <h3 className="font-medium mb-2">Bio</h3>
-                      <p className="text-muted-foreground">{profile.bio}</p>
+                      <h3 className="font-semibold mb-1">About</h3>
+                      <p className="text-sm text-muted-foreground">{user.bio}</p>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {profile.company && (
-                        <div className="flex items-center text-sm">
-                          <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <span>{profile.company}</span>
-                        </div>
-                      )}
-                      
-                      {profile.location && (
-                        <div className="flex items-center text-sm">
-                          <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <span>{profile.location}</span>
-                        </div>
-                      )}
-                      
-                      {profile.website && (
-                        <div className="flex items-center text-sm">
-                          <Link className="h-4 w-4 mr-2 text-muted-foreground" />
-                          <a 
-                            href={profile.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline"
-                          >
-                            {profile.website.replace(/^https?:\/\//, '')}
-                          </a>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-center text-sm">
-                        <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span>Joined {new Date(profile.joinDate).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>
-                      </div>
-                    </div>
-
-                    {profile.skills.length > 0 && (
-                      <div>
-                        <h3 className="font-medium mb-2">Skills & Expertise</h3>
-                        <div className="flex flex-wrap gap-2">
-                          {profile.skills.map((skill, index) => (
-                            <Badge key={index} variant="secondary">{skill}</Badge>
-                          ))}
-                        </div>
+                    <Separator />
+                    
+                    {user.company && (
+                      <div className="flex items-center gap-2">
+                        <Building className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{user.company}</span>
                       </div>
                     )}
-
-                    <div className="mt-6">
-                      <h3 className="font-medium mb-3 flex items-center">
-                        <Award className="h-4 w-4 mr-2 text-primary" />
-                        Badges & Achievements
-                      </h3>
+                    
+                    {user.location && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm">{user.location}</span>
+                      </div>
+                    )}
+                    
+                    {user.website && (
+                      <div className="flex items-center gap-2">
+                        <GlobeIcon className="h-4 w-4 text-muted-foreground" />
+                        <a href={`https://${user.website}`} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline">
+                          {user.website}
+                        </a>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center gap-2">
+                      <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Joined {user.joinDate}</span>
+                    </div>
+                    
+                    <Separator />
+                    
+                    <div>
+                      <h3 className="font-semibold mb-2">Skills</h3>
                       <div className="flex flex-wrap gap-2">
-                        {profile.badges.map(badge => (
-                          <div 
-                            key={badge.id} 
-                            className="flex flex-col items-center bg-primary/10 border border-primary/20 rounded-md p-2 w-24"
-                            title={badge.description || badge.name}
-                          >
-                            <Award className="h-5 w-5 text-yellow-500 mb-1" />
-                            <span className="text-xs font-medium text-center">{badge.name}</span>
-                          </div>
+                        {user.skills?.map((skill, index) => (
+                          <Badge key={index} variant="outline">{skill}</Badge>
                         ))}
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <Card>
-                      <CardContent className="py-4">
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div>
-                            <div className="text-2xl font-bold">{profile.posts}</div>
-                            <div className="text-xs text-muted-foreground">Posts</div>
-                          </div>
-                          <div>
-                            <div className="text-2xl font-bold">{profile.followers.toLocaleString()}</div>
-                            <div className="text-xs text-muted-foreground">Followers</div>
-                          </div>
-                          <div>
-                            <div className="text-2xl font-bold">{profile.following.toLocaleString()}</div>
-                            <div className="text-xs text-muted-foreground">Following</div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
                     
-                    <Card>
-                      <CardContent className="py-4">
-                        <h3 className="font-medium mb-2 flex items-center">
-                          <Users className="h-4 w-4 mr-2" />
-                          Connect
-                        </h3>
-                        <div className="flex flex-col space-y-3">
-                          {Object.entries(profile.socialLinks).map(([platform, url]) => (
-                            <a 
-                              key={platform}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer" 
-                              className="text-sm hover:underline flex items-center"
-                            >
-                              <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center mr-2">
-                                <span className="capitalize">{platform.charAt(0)}</span>
-                              </div>
-                              <span className="capitalize">{platform}</span>
-                            </a>
-                          ))}
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="mt-2"
-                            onClick={handleSendMessage}
+                    <Separator />
+                    
+                    <div>
+                      <h3 className="font-semibold mb-2">Social</h3>
+                      <div className="flex gap-2">
+                        {user.socialLinks?.twitter && (
+                          <a 
+                            href={`https://twitter.com/${user.socialLinks.twitter}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
                           >
-                            <Mail className="h-4 w-4 mr-2" />
-                            Send Message
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                            <Twitter className="h-4 w-4" />
+                          </a>
+                        )}
+                        
+                        {user.socialLinks?.linkedin && (
+                          <a 
+                            href={`https://linkedin.com/in/${user.socialLinks.linkedin}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <Linkedin className="h-4 w-4" />
+                          </a>
+                        )}
+                        
+                        {user.socialLinks?.github && (
+                          <a 
+                            href={`https://github.com/${user.socialLinks.github}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <Github className="h-4 w-4" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
             
-            <Tabs defaultValue="posts" className="w-full mt-8">
-              <TabsList className="flex w-full max-w-md mx-auto bg-muted">
-                <TabsTrigger value="posts" className="flex-1">Posts</TabsTrigger>
-                <TabsTrigger value="comments" className="flex-1">Comments</TabsTrigger>
-                <TabsTrigger value="saved" className="flex-1">Saved</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="posts" className="mt-6 space-y-6">
-                {isLoadingPosts ? (
-                  <div className="space-y-4">
-                    {[1, 2].map(i => (
-                      <Skeleton key={i} className="h-40 w-full" />
-                    ))}
-                  </div>
-                ) : posts.length > 0 ? (
-                  posts.map(post => (
-                    <PostCard 
-                      key={post.id} 
-                      post={post} 
-                    />
-                  ))
-                ) : (
-                  <div className="text-center py-10 border border-dashed rounded-lg">
-                    <h3 className="text-lg font-medium text-gray-600 dark:text-gray-300">No posts yet</h3>
-                    <p className="text-gray-500 dark:text-gray-400 mt-1">
-                      {profile.name} hasn't published any posts yet.
+            <div className="md:col-span-2">
+              <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <TabsList className="grid grid-cols-3 mb-6">
+                  <TabsTrigger value="posts">Posts</TabsTrigger>
+                  <TabsTrigger value="startups">Startups</TabsTrigger>
+                  <TabsTrigger value="investments">Investments</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="posts" className="space-y-6">
+                  {posts.length > 0 ? (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.5 }}
+                      className="space-y-6"
+                    >
+                      {posts.map(post => (
+                        <PostCard
+                          key={post.id}
+                          post={post}
+                          onSave={() => handleSavePost(post.id)}
+                        />
+                      ))}
+                    </motion.div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <Activity className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No posts yet</h3>
+                      <p className="text-muted-foreground max-w-md mx-auto">
+                        {userId ? `${user.name} hasn't published any posts yet.` : "You haven't published any posts yet."}
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="startups" className="space-y-6">
+                  <div className="text-center py-12">
+                    <Building className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Coming Soon</h3>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      The startups feature is currently in development and will be available soon.
                     </p>
                   </div>
-                )}
-              </TabsContent>
-              
-              <TabsContent value="comments" className="mt-6">
-                <div className="text-center py-10 border border-dashed rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-600 dark:text-gray-300">No comments yet</h3>
-                  <p className="text-gray-500 dark:text-gray-400 mt-1">
-                    {profile.name} hasn't made any comments yet.
-                  </p>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="saved" className="mt-6">
-                <div className="text-center py-10 border border-dashed rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-600 dark:text-gray-300">Private content</h3>
-                  <p className="text-gray-500 dark:text-gray-400 mt-1">
-                    Saved items are private to each user.
-                  </p>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </motion.div>
+                </TabsContent>
+                
+                <TabsContent value="investments" className="space-y-6">
+                  <div className="text-center py-12">
+                    <Award className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Coming Soon</h3>
+                    <p className="text-muted-foreground max-w-md mx-auto">
+                      The investments feature is currently in development and will be available soon.
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+          </div>
         </main>
+        
+        {showFollowModal && (
+          <UserFollowModal
+            type={showFollowModal}
+            userId={user.id}
+            userName={user.name}
+            onClose={() => setShowFollowModal(null)}
+            size="md"
+          />
+        )}
       </div>
     </PageTransition>
   );

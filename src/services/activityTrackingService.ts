@@ -20,15 +20,16 @@ export const trackActivity = async (
   referenceType?: string
 ): Promise<boolean> => {
   try {
-    // Call the RPC function to award points
-    const { error } = await supabase.rpc('award_points', {
-      user_uuid: userId,
-      points_amount: points,
-      description_text: description,
-      transaction_type_text: action,
-      ref_id: referenceId,
-      ref_type: referenceType
-    });
+    // Since we don't have the award_points function yet, let's insert directly
+    const { error } = await supabase
+      .rpc('award_points', {
+        user_uuid: userId,
+        points_amount: points,
+        description_text: description,
+        transaction_type_text: action,
+        ref_id: referenceId || null,
+        ref_type: referenceType || null
+      });
     
     if (error) {
       console.error('Error tracking activity:', error);

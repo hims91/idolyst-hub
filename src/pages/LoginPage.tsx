@@ -24,7 +24,7 @@ type FormValues = z.infer<typeof formSchema>;
 const LoginPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { setUser } = useAuth();
+  const { login } = useAuth(); // Updated to use the login method from AuthContext
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
@@ -50,26 +50,11 @@ const LoginPage = () => {
       }
       
       if (data?.user) {
-        // Fetch user profile data
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-        
-        // Set user in auth context
-        setUser({
-          ...data.user,
-          ...profileData,
+        // Use the login method from context instead of directly setting user
+        await login({
+          email: values.email,
+          password: values.password
         });
-        
-        toast({
-          title: 'Welcome back!',
-          description: 'You have successfully logged in.',
-        });
-        
-        // Redirect to home page
-        navigate('/');
       }
     } catch (error: any) {
       console.error('Login error:', error);

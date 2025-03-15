@@ -27,20 +27,17 @@ export const AdminContent = () => {
         .from('posts')
         .select(`
           id,
-          title,
+          content,
           user_id,
-          category,
           visibility,
           created_at,
-          profiles:user_id (
-            id,
-            name
-          )
+          upvotes,
+          downvotes
         `)
         .order(state.sortBy, { ascending: state.sortOrder === 'asc' });
       
       if (state.search) {
-        query = query.ilike('title', `%${state.search}%`);
+        query = query.ilike('content', `%${state.search}%`);
       }
       
       if (state.status !== 'all') {
@@ -57,19 +54,20 @@ export const AdminContent = () => {
         throw error;
       }
       
+      // For mock data since we don't have all the fields yet
       const posts: AdminPost[] = data.map(post => ({
         id: post.id,
-        title: post.title,
+        title: post.content.substring(0, 50) + '...', // Use content as title
         author: {
-          id: post.profiles.id,
-          name: post.profiles.name
+          id: post.user_id,
+          name: 'User ' + post.user_id.substring(0, 5) // Mock author name
         },
-        category: post.category || 'Uncategorized',
+        category: 'General', // Default category
         status: post.visibility,
         createdAt: post.created_at,
-        updatedAt: post.created_at, // Using created_at as a fallback
-        upvotes: 0, // These would need to be calculated separately
-        downvotes: 0,
+        updatedAt: post.created_at,
+        upvotes: post.upvotes || 0,
+        downvotes: post.downvotes || 0,
         commentsCount: 0
       }));
       
