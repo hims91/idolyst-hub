@@ -1,113 +1,89 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { Badge, UserBadge, Challenge, UserChallenge, PointsTransaction, LeaderboardEntry, UserGamificationStats } from '@/types/gamification';
+import { 
+  Badge, 
+  Challenge, 
+  LeaderboardEntry,
+  UserBadge,
+  UserChallenge,
+  UserStats,
+  PointTransaction
+} from '@/types/gamification';
 
 /**
- * Get user's current points
- * @param userId The user's ID
- * @returns The user's points
+ * Get a user's badges
+ * @param userId User ID
+ * @param type Type of badges to get (earned or available)
+ * @returns Array of badges
  */
-export const getUserPoints = async (userId: string): Promise<number> => {
+export const getUserBadges = async (userId: string, type: 'earned' | 'available'): Promise<Badge[]> => {
   try {
-    // Query user stats from database
-    const { data, error } = await supabase
-      .from('user_stats')
-      .select('points')
-      .eq('user_id', userId)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching user points:', error);
-      return 0;
-    }
-    
-    return data?.points || 0;
-  } catch (error) {
-    console.error('Error in getUserPoints:', error);
-    return 0;
-  }
-};
-
-/**
- * Get user's point transactions
- * @param userId The user's ID
- * @returns Array of point transactions
- */
-export const getPointTransactions = async (userId: string): Promise<PointsTransaction[]> => {
-  try {
-    // Execute raw SQL or RPC for this
-    const { data, error } = await supabase
-      .from('point_transactions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching point transactions:', error);
-      return [];
-    }
-    
-    return (data || []).map((transaction: any) => ({
-      id: transaction.id,
-      userId: transaction.user_id,
-      amount: transaction.amount,
-      description: transaction.description,
-      transactionType: transaction.transaction_type,
-      referenceId: transaction.reference_id,
-      referenceType: transaction.reference_type,
-      createdAt: transaction.created_at
-    }));
-  } catch (error) {
-    console.error('Error in getPointTransactions:', error);
-    return [];
-  }
-};
-
-/**
- * Get user's badges
- * @param userId The user's ID
- * @returns Array of user badges
- */
-export const getUserBadges = async (userId: string): Promise<UserBadge[]> => {
-  try {
-    // Execute raw SQL or RPC for this
-    const { data, error } = await supabase
-      .from('user_badges')
-      .select(`
-        id,
-        user_id,
-        badge_id,
-        earned_at,
-        badges:badge_id (
+    if (type === 'earned') {
+      // Get badges the user has earned
+      const { data, error } = await supabase
+        .from('user_badges')
+        .select(`
           id,
-          name,
-          description,
-          icon,
-          category,
-          points_required
-        )
-      `)
-      .eq('user_id', userId);
-    
-    if (error) {
-      console.error('Error fetching user badges:', error);
-      return [];
+          badge_id,
+          earned_at,
+          badges (
+            id,
+            name,
+            icon,
+            description,
+            category,
+            points_required
+          )
+        `)
+        .eq('user_id', userId);
+      
+      if (error) {
+        console.error('Error fetching user badges:', error);
+        return [];
+      }
+      
+      return data?.map(item => ({
+        id: item.badges.id,
+        name: item.badges.name,
+        icon: item.badges.icon,
+        description: item.badges.description,
+        category: item.badges.category,
+        pointsRequired: item.badges.points_required
+      })) || [];
+    } else {
+      // Get available badges that the user hasn't earned yet
+      const { data: userBadgeIds, error: userBadgeError } = await supabase
+        .from('user_badges')
+        .select('badge_id')
+        .eq('user_id', userId);
+      
+      if (userBadgeError) {
+        console.error('Error fetching user badge IDs:', userBadgeError);
+        return [];
+      }
+      
+      const earnedBadgeIds = userBadgeIds?.map(badge => badge.badge_id) || [];
+      
+      const { data, error } = await supabase
+        .from('badges')
+        .select('*')
+        .not('id', 'in', `(${earnedBadgeIds.join(',')})`)
+        .is('id', earnedBadgeIds.length > 0 ? null : null);
+      
+      if (error) {
+        console.error('Error fetching available badges:', error);
+        return [];
+      }
+      
+      return data?.map(badge => ({
+        id: badge.id,
+        name: badge.name,
+        icon: badge.icon,
+        description: badge.description,
+        category: badge.category,
+        pointsRequired: badge.points_required
+      })) || [];
     }
-    
-    return (data || []).map((badge: any) => ({
-      id: badge.id,
-      userId: badge.user_id,
-      badgeId: badge.badge_id,
-      badge: {
-        id: badge.badges.id,
-        name: badge.badges.name,
-        description: badge.badges.description,
-        icon: badge.badges.icon,
-        category: badge.badges.category,
-        pointsRequired: badge.badges.points_required
-      },
-      earnedAt: badge.earned_at
-    }));
   } catch (error) {
     console.error('Error in getUserBadges:', error);
     return [];
@@ -116,29 +92,27 @@ export const getUserBadges = async (userId: string): Promise<UserBadge[]> => {
 
 /**
  * Get all available badges
- * @returns Array of badges
+ * @returns Array of all badges
  */
 export const getAllBadges = async (): Promise<Badge[]> => {
   try {
     const { data, error } = await supabase
       .from('badges')
-      .select('*')
-      .order('points_required', { ascending: true });
+      .select('*');
     
     if (error) {
-      console.error('Error fetching badges:', error);
+      console.error('Error fetching all badges:', error);
       return [];
     }
     
-    return (data || []).map((badge: any) => ({
+    return data?.map(badge => ({
       id: badge.id,
       name: badge.name,
-      description: badge.description,
       icon: badge.icon,
+      description: badge.description,
       category: badge.category,
-      pointsRequired: badge.points_required,
-      createdAt: badge.created_at
-    }));
+      pointsRequired: badge.points_required
+    })) || [];
   } catch (error) {
     console.error('Error in getAllBadges:', error);
     return [];
@@ -147,28 +121,21 @@ export const getAllBadges = async (): Promise<Badge[]> => {
 
 /**
  * Get all available challenges
- * @param activeOnly Whether to fetch only active challenges
  * @returns Array of challenges
  */
-export const getAllChallenges = async (activeOnly: boolean = false): Promise<Challenge[]> => {
+export const getAvailableChallenges = async (): Promise<Challenge[]> => {
   try {
-    let query = supabase
+    const { data, error } = await supabase
       .from('challenges')
       .select('*')
       .order('created_at', { ascending: false });
-    
-    if (activeOnly) {
-      query = query.eq('is_active', true);
-    }
-    
-    const { data, error } = await query;
     
     if (error) {
       console.error('Error fetching challenges:', error);
       return [];
     }
     
-    return (data || []).map((challenge: any) => ({
+    return data?.map(challenge => ({
       id: challenge.id,
       title: challenge.title,
       description: challenge.description,
@@ -176,21 +143,21 @@ export const getAllChallenges = async (activeOnly: boolean = false): Promise<Cha
       points: challenge.points,
       startDate: challenge.start_date,
       endDate: challenge.end_date,
-      isActive: challenge.is_active,
-      createdAt: challenge.created_at
-    }));
+      isActive: challenge.is_active
+    })) || [];
   } catch (error) {
-    console.error('Error in getAllChallenges:', error);
+    console.error('Error in getAvailableChallenges:', error);
     return [];
   }
 };
 
 /**
  * Get user's challenges
- * @param userId The user's ID
+ * @param userId User ID
+ * @param isCompleted Whether to get completed or active challenges
  * @returns Array of user challenges
  */
-export const getUserChallenges = async (userId: string): Promise<UserChallenge[]> => {
+export const getUserChallenges = async (userId: string, isCompleted = false): Promise<UserChallenge[]> => {
   try {
     const { data, error } = await supabase
       .from('user_challenges')
@@ -198,11 +165,11 @@ export const getUserChallenges = async (userId: string): Promise<UserChallenge[]
         id,
         user_id,
         challenge_id,
+        joined_at,
         progress,
         is_completed,
-        joined_at,
         completed_at,
-        challenges:challenge_id (
+        challenges (
           id,
           title,
           description,
@@ -214,6 +181,7 @@ export const getUserChallenges = async (userId: string): Promise<UserChallenge[]
         )
       `)
       .eq('user_id', userId)
+      .eq('is_completed', isCompleted)
       .order('joined_at', { ascending: false });
     
     if (error) {
@@ -221,25 +189,25 @@ export const getUserChallenges = async (userId: string): Promise<UserChallenge[]
       return [];
     }
     
-    return (data || []).map((uc: any) => ({
-      id: uc.id,
-      userId: uc.user_id,
-      challengeId: uc.challenge_id,
-      challenge: {
-        id: uc.challenges.id,
-        title: uc.challenges.title,
-        description: uc.challenges.description,
-        requirements: uc.challenges.requirements,
-        points: uc.challenges.points,
-        startDate: uc.challenges.start_date,
-        endDate: uc.challenges.end_date,
-        isActive: uc.challenges.is_active
-      },
-      progress: uc.progress,
-      isCompleted: uc.is_completed,
-      joinedAt: uc.joined_at,
-      completedAt: uc.completed_at
-    }));
+    return data?.map(item => ({
+      id: item.id,
+      userId: item.user_id,
+      challengeId: item.challenge_id,
+      joinedAt: item.joined_at,
+      progress: item.progress,
+      isCompleted: item.is_completed,
+      completedAt: item.completed_at,
+      challenge: item.challenges ? {
+        id: item.challenges.id,
+        title: item.challenges.title,
+        description: item.challenges.description,
+        requirements: item.challenges.requirements,
+        points: item.challenges.points,
+        startDate: item.challenges.start_date,
+        endDate: item.challenges.end_date,
+        isActive: item.challenges.is_active
+      } : undefined
+    })) || [];
   } catch (error) {
     console.error('Error in getUserChallenges:', error);
     return [];
@@ -248,55 +216,50 @@ export const getUserChallenges = async (userId: string): Promise<UserChallenge[]
 
 /**
  * Join a challenge
- * @param userId The user's ID
- * @param challengeId The challenge ID
- * @returns Whether the operation was successful
+ * @param userId User ID
+ * @param challengeId Challenge ID
+ * @returns The created user challenge
  */
-export const joinChallenge = async (userId: string, challengeId: string): Promise<boolean> => {
+export const joinChallenge = async (userId: string, challengeId: string): Promise<UserChallenge> => {
   try {
-    // Check if already joined
-    const { data: existing } = await supabase
-      .from('user_challenges')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('challenge_id', challengeId)
-      .maybeSingle();
-    
-    if (existing) {
-      // Already joined
-      return true;
-    }
-    
-    // Join challenge
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('user_challenges')
       .insert({
         user_id: userId,
         challenge_id: challengeId,
         progress: 0,
         is_completed: false
-      });
+      })
+      .select()
+      .single();
     
     if (error) {
       console.error('Error joining challenge:', error);
-      return false;
+      throw new Error('Failed to join challenge');
     }
     
-    return true;
+    return {
+      id: data.id,
+      userId: data.user_id,
+      challengeId: data.challenge_id,
+      joinedAt: data.joined_at,
+      progress: data.progress,
+      isCompleted: data.is_completed,
+      completedAt: data.completed_at
+    };
   } catch (error) {
     console.error('Error in joinChallenge:', error);
-    return false;
+    throw error;
   }
 };
 
 /**
- * Get leaderboard data
- * @param limit Number of entries to fetch
- * @returns Leaderboard entries
+ * Get the leaderboard
+ * @param limit Number of entries to return
+ * @returns Array of leaderboard entries
  */
-export const getLeaderboard = async (limit: number = 10): Promise<LeaderboardEntry[]> => {
+export const getLeaderboard = async (limit = 10): Promise<LeaderboardEntry[]> => {
   try {
-    // Use raw SQL for this
     const { data, error } = await supabase
       .from('user_stats')
       .select(`
@@ -304,13 +267,14 @@ export const getLeaderboard = async (limit: number = 10): Promise<LeaderboardEnt
         points,
         level,
         badge_count,
+        challenge_count,
         rank,
-        profiles:user_id (
+        profiles (
           name,
           avatar
         )
       `)
-      .order('rank', { ascending: true })
+      .order('points', { ascending: false })
       .limit(limit);
     
     if (error) {
@@ -318,15 +282,17 @@ export const getLeaderboard = async (limit: number = 10): Promise<LeaderboardEnt
       return [];
     }
     
-    return (data || []).map((entry: any) => ({
-      userId: entry.user_id,
-      username: entry.profiles?.name || 'Anonymous',
-      avatarUrl: entry.profiles?.avatar,
-      points: entry.points || 0,
-      level: entry.level || 1,
-      badgeCount: entry.badge_count || 0,
-      rank: entry.rank || 999
-    }));
+    return data?.map((item, index) => ({
+      id: item.user_id,
+      name: item.profiles?.name || 'Anonymous User',
+      avatar: item.profiles?.avatar,
+      points: item.points,
+      level: item.level,
+      badgeCount: item.badge_count,
+      challengeCount: item.challenge_count,
+      // If rank is 0 (not set), use the position in the results
+      rank: item.rank || index + 1
+    })) || [];
   } catch (error) {
     console.error('Error in getLeaderboard:', error);
     return [];
@@ -334,11 +300,11 @@ export const getLeaderboard = async (limit: number = 10): Promise<LeaderboardEnt
 };
 
 /**
- * Get user's gamification stats
- * @param userId The user's ID
- * @returns The user's gamification stats
+ * Get user stats
+ * @param userId User ID
+ * @returns User stats
  */
-export const getUserGamificationStats = async (userId: string): Promise<UserGamificationStats | null> => {
+export const getUserStats = async (userId: string): Promise<UserStats | null> => {
   try {
     const { data, error } = await supabase
       .from('user_stats')
@@ -346,23 +312,62 @@ export const getUserGamificationStats = async (userId: string): Promise<UserGami
       .eq('user_id', userId)
       .maybeSingle();
     
-    if (error || !data) {
-      console.error('Error fetching user gamification stats:', error);
+    if (error) {
+      console.error('Error fetching user stats:', error);
+      return null;
+    }
+    
+    if (!data) {
       return null;
     }
     
     return {
       userId: data.user_id,
-      points: data.points || 0,
-      level: data.level || 1,
-      badgeCount: data.badge_count || 0,
-      challengeCount: data.challenge_count || 0,
-      completedChallengeCount: data.completed_challenge_count || 0,
-      rank: data.rank || 999,
-      updatedAt: data.updated_at
+      points: data.points,
+      level: data.level,
+      badgeCount: data.badge_count,
+      challengeCount: data.challenge_count,
+      completedChallengeCount: data.completed_challenge_count,
+      rank: data.rank
     };
   } catch (error) {
-    console.error('Error in getUserGamificationStats:', error);
+    console.error('Error in getUserStats:', error);
     return null;
+  }
+};
+
+/**
+ * Get point transactions for a user
+ * @param userId User ID
+ * @param limit Number of transactions to return
+ * @returns Array of point transactions
+ */
+export const getPointTransactions = async (userId: string, limit = 10): Promise<PointTransaction[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('point_transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.error('Error fetching point transactions:', error);
+      return [];
+    }
+    
+    return data?.map(transaction => ({
+      id: transaction.id,
+      userId: transaction.user_id,
+      amount: transaction.amount,
+      description: transaction.description,
+      transactionType: transaction.transaction_type,
+      referenceId: transaction.reference_id,
+      referenceType: transaction.reference_type,
+      createdAt: transaction.created_at
+    })) || [];
+  } catch (error) {
+    console.error('Error in getPointTransactions:', error);
+    return [];
   }
 };

@@ -1,9 +1,7 @@
 
-import { serve } from 'https://deno.land/std@0.188.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { decode } from 'https://deno.land/std@0.188.0/encoding/base32.ts'
+import { serve } from "https://deno.land/std@0.188.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-// CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -20,16 +18,6 @@ const getSupabaseClient = (req: Request) => {
       headers: { Authorization: authHeader || '' },
     },
   })
-}
-
-// Generate a secure TOTP secret
-const generateTOTPSecret = (): string => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
-  let secret = ''
-  for (let i = 0; i < 16; i++) {
-    secret += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return secret
 }
 
 serve(async (req: Request) => {
@@ -132,3 +120,13 @@ serve(async (req: Request) => {
     })
   }
 })
+
+// Generate a secure TOTP secret
+const generateTOTPSecret = (): string => {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+  let secret = ''
+  for (let i = 0; i < 16; i++) {
+    secret += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return secret
+}

@@ -1,56 +1,46 @@
 
 import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Calendar, Trophy, Clock, XCircle } from 'lucide-react';
 import { Challenge, UserChallenge } from '@/types/gamification';
-import { getAllChallenges, getUserChallenges, joinChallenge } from '@/services/gamificationService';
+import { getUserChallenges, getAvailableChallenges, joinChallenge } from '@/services/gamificationService';
 import { useToast } from '@/components/ui/use-toast';
-import { Award, Calendar, CheckCircle, Star, Trophy } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { format, isAfter } from 'date-fns';
+import { useAuth } from '@/context/AuthContext';
+import { Badge } from '@/components/ui/badge';
 
 interface ChallengesSectionProps {
-  type: 'active' | 'available' | 'completed';
+  type: "active" | "available" | "completed";
 }
 
 const ChallengesSection: React.FC<ChallengesSectionProps> = ({ type }) => {
-  const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const [userChallenges, setUserChallenges] = useState<UserChallenge[]>([]);
+  const [challenges, setChallenges] = useState<(Challenge | UserChallenge)[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isJoining, setIsJoining] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
   
   useEffect(() => {
     const fetchChallenges = async () => {
+      if (!user) return;
+      
       try {
         setIsLoading(true);
         
-        // Get current user
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          toast({
-            title: "Authentication Required",
-            description: "Please log in to view challenges.",
-            variant: "destructive"
-          });
-          setIsLoading(false);
-          return;
+        let data;
+        if (type === 'available') {
+          data = await getAvailableChallenges();
+        } else {
+          data = await getUserChallenges(user.id, type === 'completed');
         }
         
-        // Fetch all challenges and user challenges
-        const [allChallenges, userChallengesData] = await Promise.all([
-          getAllChallenges(type === 'available'),
-          getUserChallenges(user.id)
-        ]);
-        
-        setChallenges(allChallenges);
-        setUserChallenges(userChallengesData);
+        setChallenges(data || []);
       } catch (error) {
-        console.error('Error fetching challenges:', error);
+        console.error(`Error fetching ${type} challenges:`, error);
         toast({
           title: "Error",
-          description: "Failed to load challenges. Please try again later.",
+          description: `Failed to load ${type} challenges. Please try again later.`,
           variant: "destructive"
         });
       } finally {
@@ -59,169 +49,210 @@ const ChallengesSection: React.FC<ChallengesSectionProps> = ({ type }) => {
     };
     
     fetchChallenges();
-  }, [toast, type]);
+  }, [type, user, toast]);
   
   const handleJoinChallenge = async (challengeId: string) => {
+    if (!user) return;
+    
     try {
-      setIsJoining(challengeId);
+      const userChallenge = await joinChallenge(user.id, challengeId);
       
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      // Update the challenges list
+      setChallenges(prev => 
+        prev.filter(c => 'id' in c ? c.id !== challengeId : true)
+      );
       
-      if (!user) {
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to join challenges.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      const success = await joinChallenge(user.id, challengeId);
-      
-      if (success) {
-        // Refetch challenges to update the UI
-        const userChallengesData = await getUserChallenges(user.id);
-        setUserChallenges(userChallengesData);
-        
-        toast({
-          title: "Challenge Joined",
-          description: "You have successfully joined the challenge."
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to join challenge. Please try again.",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "Challenge Joined",
+        description: "You have successfully joined this challenge.",
+      });
     } catch (error) {
-      console.error('Error joining challenge:', error);
+      console.error("Error joining challenge:", error);
       toast({
         title: "Error",
-        description: "Failed to join challenge. Please try again.",
+        description: "Failed to join challenge. Please try again later.",
         variant: "destructive"
       });
-    } finally {
-      setIsJoining(null);
     }
   };
   
-  // Filter and process challenges based on type
-  const filteredChallenges = React.useMemo(() => {
-    if (type === 'available') {
-      // Show challenges that user hasn't joined yet
-      const joinedChallengeIds = new Set(userChallenges.map(uc => uc.challenge.id));
-      return challenges.filter(c => !joinedChallengeIds.has(c.id));
-    } else if (type === 'active') {
-      // Show joined but not completed challenges
-      return userChallenges
-        .filter(uc => !uc.isCompleted)
-        .map(uc => ({
-          ...uc.challenge,
-          userChallenge: uc
-        }));
-    } else {
-      // Show completed challenges
-      return userChallenges
-        .filter(uc => uc.isCompleted)
-        .map(uc => ({
-          ...uc.challenge,
-          userChallenge: uc
-        }));
-    }
-  }, [challenges, userChallenges, type]);
-  
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {[1, 2, 3].map((index) => (
-          <Card key={index} className="border border-gray-200 animate-pulse">
-            <CardHeader className="h-24 bg-gray-100"></CardHeader>
-            <CardContent className="h-48 bg-gray-50"></CardContent>
+      <div className="space-y-4">
+        {[1, 2, 3].map(i => (
+          <Card key={i} className="relative">
+            <CardHeader className="pb-2">
+              <div className="w-3/4 h-6 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+            </CardHeader>
+            <CardContent>
+              <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-4" />
+              <div className="w-2/3 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-4" />
+              <div className="w-full h-10 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+            </CardContent>
           </Card>
         ))}
       </div>
     );
   }
   
-  if (filteredChallenges.length === 0) {
+  if (challenges.length === 0) {
     return (
-      <div className="text-center p-8 bg-gray-50 rounded-lg">
-        <Trophy className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-        <h3 className="text-xl font-semibold text-gray-700">
-          {type === 'available' ? 'No available challenges' : 
-           type === 'active' ? 'No active challenges' : 
-           'No completed challenges'}
-        </h3>
-        <p className="text-gray-500 mt-2">
-          {type === 'available' ? 'You\'ve joined all available challenges. Check back later for new ones!' : 
-           type === 'active' ? 'Join some challenges to get started on your journey!' : 
-           'Complete challenges to earn rewards and see them here!'}
-        </p>
-      </div>
+      <Card className="border-dashed">
+        <CardContent className="pt-6 text-center">
+          <XCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+            No {type} challenges found
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {type === 'available' 
+              ? 'Check back later for new challenges' 
+              : type === 'active'
+                ? 'Join some challenges to get started'
+                : 'Complete challenges to see them here'}
+          </p>
+          {type !== 'available' && (
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => window.location.href = '/rewards?tab=available'}
+            >
+              Find Challenges
+            </Button>
+          )}
+        </CardContent>
+      </Card>
     );
   }
   
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {filteredChallenges.map((challenge) => (
-        <Card key={challenge.id} className="border border-gray-200">
-          <CardHeader className={`pb-3 ${type === 'completed' ? 'bg-green-50' : type === 'active' ? 'bg-blue-50' : 'bg-gray-50'}`}>
-            <div className="flex justify-between items-start">
-              <CardTitle className="text-lg font-semibold">{challenge.title}</CardTitle>
-              {type === 'completed' && <CheckCircle className="h-5 w-5 text-green-500" />}
-              {type === 'active' && <Star className="h-5 w-5 text-amber-400" />}
-            </div>
-            <CardDescription className="text-xs">
-              {challenge.startDate && 
-                <div className="flex items-center mt-1">
-                  <Calendar className="h-3 w-3 mr-1" />
-                  {new Date(challenge.startDate).toLocaleDateString()} - 
-                  {challenge.endDate ? new Date(challenge.endDate).toLocaleDateString() : 'Ongoing'}
-                </div>
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-2">{challenge.description}</p>
-              {challenge.requirements && (
-                <div className="mt-2 text-xs text-gray-500">
-                  <p className="font-medium">Requirements:</p>
-                  <p>{challenge.requirements}</p>
+    <div className="space-y-4">
+      {challenges.map(challenge => {
+        const isUserChallenge = 'progress' in challenge;
+        
+        // For available challenges
+        if (!isUserChallenge) {
+          const hasStarted = !challenge.startDate || isAfter(new Date(), new Date(challenge.startDate));
+          const hasEnded = challenge.endDate && isAfter(new Date(), new Date(challenge.endDate));
+          
+          return (
+            <Card key={challenge.id} className="relative overflow-hidden">
+              {!challenge.isActive && (
+                <div className="absolute top-0 right-0 m-2">
+                  <Badge variant="outline" className="bg-gray-200/80 dark:bg-gray-700/80">
+                    Inactive
+                  </Badge>
                 </div>
               )}
-            </div>
-            
-            {type !== 'available' && (
-              <div className="mt-4">
-                <div className="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>Progress</span>
-                  <span>{(challenge as any).userChallenge.progress}%</span>
+              
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center">
+                  <Trophy className="h-5 w-5 text-primary mr-2" />
+                  {challenge.title}
+                </CardTitle>
+              </CardHeader>
+              
+              <CardContent>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                  {challenge.description}
+                </p>
+                
+                <div className="flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-400 mb-4">
+                  {challenge.startDate && (
+                    <div className="flex items-center">
+                      <Calendar className="h-3.5 w-3.5 mr-1" />
+                      Starts: {format(new Date(challenge.startDate), 'MMM d, yyyy')}
+                    </div>
+                  )}
+                  
+                  {challenge.endDate && (
+                    <div className="flex items-center">
+                      <Clock className="h-3.5 w-3.5 mr-1" />
+                      Ends: {format(new Date(challenge.endDate), 'MMM d, yyyy')}
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center ml-auto">
+                    <Trophy className="h-3.5 w-3.5 mr-1 text-yellow-500" />
+                    {challenge.points} pts
+                  </div>
                 </div>
-                <Progress value={(challenge as any).userChallenge.progress} className="h-2" />
+                
+                <Button 
+                  className="w-full" 
+                  disabled={!challenge.isActive || hasEnded || !hasStarted}
+                  onClick={() => handleJoinChallenge(challenge.id)}
+                >
+                  {!challenge.isActive 
+                    ? 'Challenge Inactive' 
+                    : hasEnded 
+                      ? 'Challenge Ended' 
+                      : !hasStarted 
+                        ? 'Coming Soon' 
+                        : 'Join Challenge'}
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        }
+        
+        // For user challenges (active or completed)
+        const userChallenge = challenge as UserChallenge;
+        const challengeData = 'challenge' in userChallenge && userChallenge.challenge 
+          ? userChallenge.challenge 
+          : { title: 'Challenge', description: '', points: 0 };
+        
+        return (
+          <Card key={userChallenge.id} className="relative overflow-hidden">
+            {userChallenge.isCompleted && (
+              <div className="absolute top-0 right-0 m-2">
+                <Badge className="bg-green-100 text-green-800 dark:bg-green-800/20 dark:text-green-300 border-green-200 dark:border-green-800">
+                  Completed
+                </Badge>
               </div>
             )}
-          </CardContent>
-          <CardFooter className="border-t bg-gray-50 px-4 py-3 flex justify-between">
-            <div className="flex items-center text-sm font-medium">
-              <Trophy className="h-4 w-4 mr-2 text-amber-500" />
-              {challenge.points} points
-            </div>
             
-            {type === 'available' && (
-              <Button 
-                size="sm"
-                onClick={() => handleJoinChallenge(challenge.id)}
-                disabled={isJoining === challenge.id}
-              >
-                {isJoining === challenge.id ? 'Joining...' : 'Join'}
-              </Button>
-            )}
-          </CardFooter>
-        </Card>
-      ))}
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center">
+                <Trophy className="h-5 w-5 text-primary mr-2" />
+                {challengeData.title}
+              </CardTitle>
+            </CardHeader>
+            
+            <CardContent>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                {challengeData.description}
+              </p>
+              
+              <div className="mb-4">
+                <div className="flex justify-between text-sm mb-1">
+                  <span>Progress</span>
+                  <span>{userChallenge.progress}%</span>
+                </div>
+                <Progress value={userChallenge.progress} className="h-2" />
+              </div>
+              
+              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+                {userChallenge.completedAt ? (
+                  <div className="flex items-center">
+                    <Trophy className="h-3.5 w-3.5 mr-1 text-green-500" />
+                    Completed on {format(new Date(userChallenge.completedAt), 'MMM d, yyyy')}
+                  </div>
+                ) : (
+                  <div className="flex items-center">
+                    <Calendar className="h-3.5 w-3.5 mr-1" />
+                    Joined on {format(new Date(userChallenge.joinedAt), 'MMM d, yyyy')}
+                  </div>
+                )}
+                
+                <div className="flex items-center">
+                  <Trophy className="h-3.5 w-3.5 mr-1 text-yellow-500" />
+                  {challengeData.points} pts
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };

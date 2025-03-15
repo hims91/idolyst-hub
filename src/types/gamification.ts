@@ -1,46 +1,66 @@
 
+// Gamification types
 export interface Badge {
   id: string;
   name: string;
+  icon: string;
   description?: string;
-  icon?: string;
   category?: string;
   pointsRequired?: number;
-  createdAt?: string;
 }
 
 export interface UserBadge {
   id: string;
   userId: string;
-  badgeId: string; // Reference to badge
-  badge?: Badge; // Joined badge data
+  badgeId: string;
+  badge?: Badge;
   earnedAt: string;
 }
 
 export interface Challenge {
   id: string;
   title: string;
-  description?: string;
+  description: string;
   requirements?: string;
   points: number;
-  startDate?: string;
+  startDate?: string; 
   endDate?: string;
   isActive: boolean;
-  createdAt?: string;
 }
 
 export interface UserChallenge {
   id: string;
   userId: string;
-  challengeId: string; // Reference to challenge
-  challenge?: Challenge; // Joined challenge data
+  challengeId: string;
+  challenge?: Challenge;
+  joinedAt: string;
   progress: number;
   isCompleted: boolean;
-  joinedAt: string;
   completedAt?: string;
 }
 
-export interface PointsTransaction {
+export interface LeaderboardEntry {
+  id: string;
+  name: string;
+  avatar?: string;
+  points: number;
+  rank: number;
+  level: number;
+  badgeCount: number;
+  challengeCount: number;
+}
+
+export interface UserStats {
+  userId: string;
+  points: number;
+  level: number;
+  badgeCount: number;
+  challengeCount: number;
+  completedChallengeCount: number;
+  rank: number;
+}
+
+export interface PointTransaction {
   id: string;
   userId: string;
   amount: number;
@@ -49,25 +69,4 @@ export interface PointsTransaction {
   referenceId?: string;
   referenceType?: string;
   createdAt: string;
-}
-
-export interface LeaderboardEntry {
-  userId: string;
-  username: string;
-  avatarUrl?: string;
-  points: number;
-  level: number;
-  badgeCount: number;
-  rank: number;
-}
-
-export interface UserGamificationStats {
-  userId: string;
-  points: number;
-  level: number;
-  badgeCount: number;
-  challengeCount: number;
-  completedChallengeCount: number;
-  rank: number;
-  updatedAt?: string;
 }
