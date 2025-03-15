@@ -8,19 +8,28 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      headers: corsHeaders,
+    })
   }
 
   try {
-    const { userId, actionType, actionValue = 1 } = await req.json();
+    const { userId, actionType, actionValue = 1 } = await req.json()
     
+    // Validate inputs
     if (!userId || !actionType) {
       return new Response(
-        JSON.stringify({ success: false, error: 'User ID and action type are required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        JSON.stringify({ 
+          success: false, 
+          error: 'Missing required parameters' 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400 
+        }
+      )
     }
 
     // Create a Supabase client with the Auth context
@@ -31,10 +40,10 @@ serve(async (req) => {
         global: { headers: { Authorization: req.headers.get('Authorization')! } },
         auth: { persistSession: false },
       }
-    );
+    )
 
-    // Fetch user's active challenges that match this action type
-    const { data: challenges, error } = await supabaseClient
+    // First, get all active challenges the user has joined
+    const { data: activeChallenges, error: challengesError } = await supabaseClient
       .from('user_challenges')
       .select(`
         id,
@@ -42,92 +51,137 @@ serve(async (req) => {
         progress,
         is_completed,
         challenges:challenge_id (
-          id,
           title,
-          requirements
+          requirements,
+          points,
+          is_active
         )
       `)
       .eq('user_id', userId)
-      .eq('is_completed', false);
-    
-    if (error) {
-      console.error('Error fetching user challenges:', error);
+      .eq('is_completed', false)
+      .filter('challenges.is_active', 'eq', true)
+
+    if (challengesError) {
+      console.error('Error fetching challenges:', challengesError)
       return new Response(
-        JSON.stringify({ success: false, error: 'Failed to fetch challenges' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        JSON.stringify({ 
+          success: false, 
+          error: 'Failed to fetch challenges' 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500 
+        }
+      )
     }
-    
-    // Filter challenges that are related to this action
-    const relevantChallenges = challenges.filter(c => 
-      c.challenges.requirements?.includes(actionType)
-    );
-    
+
+    // Check if we have any challenges to update
+    if (!activeChallenges || activeChallenges.length === 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: 'No active challenges found' 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      )
+    }
+
+    // Filter challenges that match this action type
+    // In a real app, you'd have more sophisticated matching logic
+    const relevantChallenges = activeChallenges.filter(challenge => {
+      // Simple string matching for demo purposes
+      return challenge.challenges?.requirements?.toLowerCase().includes(actionType.toLowerCase())
+    })
+
     if (relevantChallenges.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, message: 'No relevant challenges found' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Update progress for each relevant challenge
-    const results = [];
-    for (const challenge of relevantChallenges) {
-      const newProgress = Math.min(100, challenge.progress + actionValue);
-      const isNewlyCompleted = newProgress >= 100 && !challenge.is_completed;
-      
-      const { error: updateError } = await supabaseClient
-        .from('user_challenges')
-        .update({
-          progress: newProgress,
-          is_completed: newProgress >= 100,
-          completed_at: newProgress >= 100 ? new Date().toISOString() : null
-        })
-        .eq('id', challenge.id);
-      
-      if (updateError) {
-        console.error('Error updating challenge progress:', updateError);
-        results.push({ id: challenge.id, success: false, error: updateError.message });
-      } else {
-        results.push({ 
-          id: challenge.id, 
+        JSON.stringify({ 
           success: true, 
-          newProgress,
-          completed: newProgress >= 100
-        });
-        
-        // Award points if the challenge was just completed
-        if (isNewlyCompleted) {
-          // Get challenge points
-          const { data: challengeData } = await supabaseClient
-            .from('challenges')
-            .select('points')
-            .eq('id', challenge.challenge_id)
-            .single();
-            
-          if (challengeData?.points) {
-            await supabaseClient.rpc('award_points', {
-              user_uuid: userId,
-              points_amount: challengeData.points,
-              description_text: `Completed challenge: ${challenge.challenges.title}`,
-              transaction_type_text: 'challenge_completion',
-              ref_id: challenge.challenge_id,
-              ref_type: 'challenge'
-            });
-          }
+          message: 'No relevant challenges found for this action' 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
         }
+      )
+    }
+
+    // Process updates
+    const updates = []
+    let completedChallenges = []
+
+    for (const challenge of relevantChallenges) {
+      // Calculate new progress (increment by actionValue)
+      const newProgress = (challenge.progress || 0) + actionValue
+
+      // Check if the challenge has a completion target
+      const completionTarget = 100 // For demo purposes, using 100 as the standard completion target
+      const isNowCompleted = newProgress >= completionTarget
+
+      // Prepare update
+      updates.push(
+        supabaseClient
+          .from('user_challenges')
+          .update({ 
+            progress: newProgress, 
+            is_completed: isNowCompleted,
+            completed_at: isNowCompleted ? new Date().toISOString() : null
+          })
+          .eq('id', challenge.id)
+      )
+
+      // If challenge is now completed, add to list for awarding points
+      if (isNowCompleted) {
+        completedChallenges.push({
+          id: challenge.id,
+          title: challenge.challenges?.title,
+          points: challenge.challenges?.points
+        })
       }
     }
-    
+
+    // Execute all updates in parallel
+    await Promise.all(updates)
+
+    // Award points for completed challenges
+    for (const challenge of completedChallenges) {
+      if (!challenge.points) continue
+      
+      await supabaseClient.rpc('award_points', {
+        user_uuid: userId,
+        points_amount: challenge.points,
+        description_text: `Completed challenge: ${challenge.title}`,
+        transaction_type_text: 'challenge_completed',
+        ref_id: challenge.id,
+        ref_type: 'challenge'
+      })
+    }
+
     return new Response(
-      JSON.stringify({ success: true, results }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      JSON.stringify({ 
+        success: true, 
+        updated: relevantChallenges.length,
+        completed: completedChallenges.length
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 
+      }
+    )
   } catch (error) {
-    console.error('Error in updateChallengeProgress:', error);
+    console.error('Error processing challenge progress:', error)
     return new Response(
-      JSON.stringify({ success: false, error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      JSON.stringify({ 
+        success: false, 
+        error: error.message 
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500 
+      }
+    )
   }
 })

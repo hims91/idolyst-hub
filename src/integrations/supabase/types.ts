@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      badges: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          points_required: number | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          points_required?: number | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          points_required?: number | null
+        }
+        Relationships: []
+      }
       bookmarks: {
         Row: {
           created_at: string | null
@@ -37,6 +67,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      challenges: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          points: number
+          requirements: string | null
+          start_date: string | null
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          points: number
+          requirements?: string | null
+          start_date?: string | null
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          points?: number
+          requirements?: string | null
+          start_date?: string | null
+          title?: string
+        }
+        Relationships: []
       }
       comments: {
         Row: {
@@ -80,6 +146,39 @@ export type Database = {
           },
         ]
       }
+      point_transactions: {
+        Row: {
+          amount: number
+          created_at: string | null
+          description: string | null
+          id: string
+          reference_id: string | null
+          reference_type: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       post_votes: {
         Row: {
           created_at: string | null
@@ -120,6 +219,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_featured: boolean | null
+          title: string | null
           updated_at: string | null
           upvotes: number | null
           user_id: string | null
@@ -132,6 +232,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_featured?: boolean | null
+          title?: string | null
           updated_at?: string | null
           upvotes?: number | null
           user_id?: string | null
@@ -144,10 +245,177 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_featured?: boolean | null
+          title?: string | null
           updated_at?: string | null
           upvotes?: number | null
           user_id?: string | null
           visibility?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar: string | null
+          bio: string | null
+          company: string | null
+          created_at: string | null
+          id: string
+          join_date: string | null
+          location: string | null
+          name: string | null
+          role: string | null
+          updated_at: string | null
+          website: string | null
+        }
+        Insert: {
+          avatar?: string | null
+          bio?: string | null
+          company?: string | null
+          created_at?: string | null
+          id: string
+          join_date?: string | null
+          location?: string | null
+          name?: string | null
+          role?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Update: {
+          avatar?: string | null
+          bio?: string | null
+          company?: string | null
+          created_at?: string | null
+          id?: string
+          join_date?: string | null
+          location?: string | null
+          name?: string | null
+          role?: string | null
+          updated_at?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
+      user_2fa: {
+        Row: {
+          created_at: string | null
+          is_enabled: boolean | null
+          secret: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          is_enabled?: boolean | null
+          secret: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          is_enabled?: boolean | null
+          secret?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_badges: {
+        Row: {
+          badge_id: string
+          earned_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          badge_id: string
+          earned_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          badge_id?: string
+          earned_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_challenges: {
+        Row: {
+          challenge_id: string
+          completed_at: string | null
+          id: string
+          is_completed: boolean | null
+          joined_at: string | null
+          progress: number | null
+          user_id: string
+        }
+        Insert: {
+          challenge_id: string
+          completed_at?: string | null
+          id?: string
+          is_completed?: boolean | null
+          joined_at?: string | null
+          progress?: number | null
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string
+          completed_at?: string | null
+          id?: string
+          is_completed?: boolean | null
+          joined_at?: string | null
+          progress?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_challenges_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_stats: {
+        Row: {
+          badge_count: number | null
+          challenge_count: number | null
+          completed_challenge_count: number | null
+          level: number | null
+          points: number | null
+          rank: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          badge_count?: number | null
+          challenge_count?: number | null
+          completed_challenge_count?: number | null
+          level?: number | null
+          points?: number | null
+          rank?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          badge_count?: number | null
+          challenge_count?: number | null
+          completed_challenge_count?: number | null
+          level?: number | null
+          points?: number | null
+          rank?: number | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -156,7 +424,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      award_points: {
+        Args: {
+          user_uuid: string
+          points_amount: number
+          description_text: string
+          transaction_type_text: string
+          ref_id?: string
+          ref_type?: string
+        }
+        Returns: boolean
+      }
+      verify_totp: {
+        Args: {
+          user_uuid: string
+          otp_code: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

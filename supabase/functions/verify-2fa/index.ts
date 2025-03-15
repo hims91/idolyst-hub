@@ -71,17 +71,6 @@ serve(async (req: Request) => {
     }
 
     else if (action === 'verify') {
-      // Get user's secret
-      const { data, error } = await supabase
-        .from('user_2fa')
-        .select('secret')
-        .eq('user_id', userId)
-        .single()
-
-      if (error || !data) {
-        throw new Error(`2FA not set up for this user: ${error?.message}`)
-      }
-
       // Call the RPC function to verify the TOTP code
       const { data: isValid, error: verifyError } = await supabase
         .rpc('verify_totp', { 

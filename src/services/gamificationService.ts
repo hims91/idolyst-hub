@@ -3,22 +3,25 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge, UserBadge, Challenge, UserChallenge, PointsTransaction, LeaderboardEntry, UserGamificationStats } from '@/types/gamification';
 
 /**
- * Get user's current points and level
+ * Get user's current points
  * @param userId The user's ID
- * @returns The user's points and level
+ * @returns The user's points
  */
 export const getUserPoints = async (userId: string): Promise<number> => {
   try {
-    // Query user points from database
+    // Query user stats from database
     const { data, error } = await supabase
-      .rpc('calculate_user_points', { user_uuid: userId });
+      .from('user_stats')
+      .select('points')
+      .eq('user_id', userId)
+      .single();
     
     if (error) {
       console.error('Error fetching user points:', error);
       return 0;
     }
     
-    return data || 0;
+    return data?.points || 0;
   } catch (error) {
     console.error('Error in getUserPoints:', error);
     return 0;
@@ -32,6 +35,7 @@ export const getUserPoints = async (userId: string): Promise<number> => {
  */
 export const getPointTransactions = async (userId: string): Promise<PointsTransaction[]> => {
   try {
+    // Execute raw SQL or RPC for this
     const { data, error } = await supabase
       .from('point_transactions')
       .select('*')
@@ -66,6 +70,7 @@ export const getPointTransactions = async (userId: string): Promise<PointsTransa
  */
 export const getUserBadges = async (userId: string): Promise<UserBadge[]> => {
   try {
+    // Execute raw SQL or RPC for this
     const { data, error } = await supabase
       .from('user_badges')
       .select(`
@@ -92,6 +97,7 @@ export const getUserBadges = async (userId: string): Promise<UserBadge[]> => {
     return (data || []).map((badge: any) => ({
       id: badge.id,
       userId: badge.user_id,
+      badgeId: badge.badge_id,
       badge: {
         id: badge.badges.id,
         name: badge.badges.name,
@@ -218,6 +224,7 @@ export const getUserChallenges = async (userId: string): Promise<UserChallenge[]
     return (data || []).map((uc: any) => ({
       id: uc.id,
       userId: uc.user_id,
+      challengeId: uc.challenge_id,
       challenge: {
         id: uc.challenges.id,
         title: uc.challenges.title,
@@ -289,8 +296,22 @@ export const joinChallenge = async (userId: string, challengeId: string): Promis
  */
 export const getLeaderboard = async (limit: number = 10): Promise<LeaderboardEntry[]> => {
   try {
+    // Use raw SQL for this
     const { data, error } = await supabase
-      .rpc('get_leaderboard', { limit_count: limit });
+      .from('user_stats')
+      .select(`
+        user_id,
+        points,
+        level,
+        badge_count,
+        rank,
+        profiles:user_id (
+          name,
+          avatar
+        )
+      `)
+      .order('rank', { ascending: true })
+      .limit(limit);
     
     if (error) {
       console.error('Error fetching leaderboard:', error);
@@ -299,12 +320,12 @@ export const getLeaderboard = async (limit: number = 10): Promise<LeaderboardEnt
     
     return (data || []).map((entry: any) => ({
       userId: entry.user_id,
-      username: entry.username,
-      avatarUrl: entry.avatar_url,
-      points: entry.points,
-      level: entry.level,
-      badgeCount: entry.badge_count,
-      rank: entry.rank
+      username: entry.profiles?.name || 'Anonymous',
+      avatarUrl: entry.profiles?.avatar,
+      points: entry.points || 0,
+      level: entry.level || 1,
+      badgeCount: entry.badge_count || 0,
+      rank: entry.rank || 999
     }));
   } catch (error) {
     console.error('Error in getLeaderboard:', error);
@@ -320,21 +341,25 @@ export const getLeaderboard = async (limit: number = 10): Promise<LeaderboardEnt
 export const getUserGamificationStats = async (userId: string): Promise<UserGamificationStats | null> => {
   try {
     const { data, error } = await supabase
-      .rpc('get_user_gamification_stats', { user_uuid: userId });
+      .from('user_stats')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
     
-    if (error || !data || data.length === 0) {
+    if (error || !data) {
       console.error('Error fetching user gamification stats:', error);
       return null;
     }
     
-    const stats = data[0];
     return {
-      points: stats.points,
-      level: stats.level,
-      badgeCount: stats.badge_count,
-      challengeCount: stats.challenge_count,
-      completedChallengeCount: stats.completed_challenge_count,
-      rank: stats.rank
+      userId: data.user_id,
+      points: data.points || 0,
+      level: data.level || 1,
+      badgeCount: data.badge_count || 0,
+      challengeCount: data.challenge_count || 0,
+      completedChallengeCount: data.completed_challenge_count || 0,
+      rank: data.rank || 999,
+      updatedAt: data.updated_at
     };
   } catch (error) {
     console.error('Error in getUserGamificationStats:', error);

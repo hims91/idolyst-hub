@@ -20,7 +20,6 @@ export const trackActivity = async (
   referenceType?: string
 ): Promise<boolean> => {
   try {
-    // Since we don't have the award_points function yet, let's insert directly
     const { error } = await supabase
       .rpc('award_points', {
         user_uuid: userId,
