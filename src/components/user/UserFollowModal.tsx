@@ -1,70 +1,115 @@
 
 import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import userService from '@/services/api/user';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { User } from '@/types/api';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
+import { useToast } from '@/hooks/use-toast';
+import { UserCog, UserCheck, UserX } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import * as userService from '@/services/userService';
 
-export interface UserFollowModalProps {
+interface UserFollowModalProps {
   userId: string;
   isOpen: boolean;
   onClose: () => void;
+  activeTab?: 'followers' | 'following';
 }
 
-const UserFollowModal: React.FC<UserFollowModalProps> = ({ userId, isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'followers' | 'following'>('followers');
-  const [users, setUsers] = useState<User[]>([]);
+const UserFollowModal: React.FC<UserFollowModalProps> = ({
+  userId,
+  isOpen,
+  onClose,
+  activeTab = 'followers'
+}) => {
+  const [tab, setTab] = useState<'followers' | 'following'>(activeTab);
+  const [followers, setFollowers] = useState<User[]>([]);
+  const [following, setFollowing] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const auth = useAuth();
 
   useEffect(() => {
     if (isOpen) {
-      loadUsers();
+      fetchUsers();
     }
-  }, [isOpen, activeTab]);
+  }, [isOpen, userId, tab]);
 
-  const loadUsers = async () => {
-    setLoading(true);
+  const fetchUsers = async () => {
     try {
-      let data: User[];
-      if (activeTab === 'followers') {
-        data = await userService.getUserFollowers(userId);
+      setLoading(true);
+      if (tab === 'followers') {
+        const data = await userService.getFollowers(userId);
+        setFollowers(data);
       } else {
-        data = await userService.getUserFollowing(userId);
+        const data = await userService.getFollowing(userId);
+        setFollowing(data);
       }
-      setUsers(data || []);
     } catch (error) {
-      console.error(`Error fetching ${activeTab}:`, error);
-      setUsers([]);
+      console.error(`Error fetching ${tab}:`, error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: `Failed to load ${tab}. Please try again.`,
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTabChange = (value: string) => {
-    setActiveTab(value as 'followers' | 'following');
+  const handleFollow = async (userToFollowId: string) => {
+    if (!auth.user) return;
+    
+    try {
+      await userService.followUser(userToFollowId);
+      
+      toast({
+        title: 'Success',
+        description: 'You are now following this user',
+      });
+      
+      // Update the followers list
+      fetchUsers();
+      
+    } catch (error) {
+      console.error('Error following user:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to follow user. Please try again.',
+      });
+    }
   };
 
-  const handleFollowToggle = async (targetUserId: string, isFollowing: boolean) => {
+  const handleUnfollow = async (userToUnfollowId: string) => {
+    if (!auth.user) return;
+    
     try {
-      if (isFollowing) {
-        await userService.unfollowUser(targetUserId);
-      } else {
-        await userService.followUser(targetUserId);
-      }
+      await userService.unfollowUser(userToUnfollowId);
       
-      // Update local state
-      setUsers(prevUsers => 
-        prevUsers.map(user => 
-          user.id === targetUserId 
-            ? { ...user, isFollowing: !isFollowing } 
-            : user
-        )
-      );
+      toast({
+        title: 'Success',
+        description: 'You have unfollowed this user',
+      });
+      
+      // Update the following list
+      fetchUsers();
+      
     } catch (error) {
-      console.error('Error toggling follow:', error);
+      console.error('Error unfollowing user:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to unfollow user. Please try again.',
+      });
     }
   };
 
@@ -72,64 +117,134 @@ const UserFollowModal: React.FC<UserFollowModalProps> = ({ userId, isOpen, onClo
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center mb-4">
-            {activeTab === 'followers' ? 'Followers' : 'Following'}
+          <DialogTitle>
+            {tab === 'followers' ? 'Followers' : 'Following'}
           </DialogTitle>
+          <DialogDescription>
+            {tab === 'followers' 
+              ? 'People who follow this user'
+              : 'People this user follows'
+            }
+          </DialogDescription>
         </DialogHeader>
         
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+        <Tabs value={tab} onValueChange={(value) => setTab(value as 'followers' | 'following')}>
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="followers">Followers</TabsTrigger>
             <TabsTrigger value="following">Following</TabsTrigger>
           </TabsList>
           
-          <div className="px-1">
+          <TabsContent value="followers" className="mt-4">
             {loading ? (
               <div className="flex justify-center py-8">
                 <Spinner size="lg" />
               </div>
-            ) : users.length === 0 ? (
-              <p className="text-center text-gray-500 py-8">
-                {activeTab === 'followers' 
-                  ? 'No followers yet' 
-                  : 'Not following anyone yet'}
-              </p>
-            ) : (
-              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                {users.map(user => (
-                  <div 
-                    key={user.id} 
-                    className="flex items-center justify-between border-b pb-4"
-                  >
-                    <div className="flex items-center gap-3">
+            ) : followers.length > 0 ? (
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                {followers.map((follower) => (
+                  <div key={follower.id} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
                       <Avatar>
-                        <AvatarImage src={user.avatar} />
+                        <AvatarImage src={follower.avatar} />
                         <AvatarFallback>
-                          {user.name?.charAt(0) || '?'}
+                          {follower.name.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{user.name}</p>
-                        {user.bio && (
-                          <p className="text-sm text-gray-500 line-clamp-1">
-                            {user.bio}
-                          </p>
+                        <p className="font-medium leading-none">{follower.name}</p>
+                        {follower.role && (
+                          <p className="text-sm text-muted-foreground">{follower.role}</p>
                         )}
                       </div>
                     </div>
-                    
-                    <Button
-                      variant={user.isFollowing ? "outline" : "default"}
-                      size="sm"
-                      onClick={() => handleFollowToggle(user.id, !!user.isFollowing)}
-                    >
-                      {user.isFollowing ? "Unfollow" : "Follow"}
-                    </Button>
+                    {auth.user && auth.user.id !== follower.id && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => follower.isFollowing 
+                          ? handleUnfollow(follower.id)
+                          : handleFollow(follower.id)
+                        }
+                      >
+                        {follower.isFollowing ? (
+                          <>
+                            <UserCheck className="mr-1 h-4 w-4" />
+                            Following
+                          </>
+                        ) : (
+                          <>
+                            <UserCog className="mr-1 h-4 w-4" />
+                            Follow
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <UserX className="mx-auto h-12 w-12 mb-3 text-muted-foreground/60" />
+                <p>No followers yet</p>
+              </div>
             )}
-          </div>
+          </TabsContent>
+          
+          <TabsContent value="following" className="mt-4">
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Spinner size="lg" />
+              </div>
+            ) : following.length > 0 ? (
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-1">
+                {following.map((follow) => (
+                  <div key={follow.id} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Avatar>
+                        <AvatarImage src={follow.avatar} />
+                        <AvatarFallback>
+                          {follow.name.substring(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium leading-none">{follow.name}</p>
+                        {follow.role && (
+                          <p className="text-sm text-muted-foreground">{follow.role}</p>
+                        )}
+                      </div>
+                    </div>
+                    {auth.user && auth.user.id !== follow.id && (
+                      <Button 
+                        variant={follow.isFollowing ? "secondary" : "outline"} 
+                        size="sm"
+                        onClick={() => follow.isFollowing 
+                          ? handleUnfollow(follow.id)
+                          : handleFollow(follow.id)
+                        }
+                      >
+                        {follow.isFollowing ? (
+                          <>
+                            <UserCheck className="mr-1 h-4 w-4" />
+                            Following
+                          </>
+                        ) : (
+                          <>
+                            <UserCog className="mr-1 h-4 w-4" />
+                            Follow
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <UserX className="mx-auto h-12 w-12 mb-3 text-muted-foreground/60" />
+                <p>Not following anyone yet</p>
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </DialogContent>
     </Dialog>

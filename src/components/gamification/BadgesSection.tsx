@@ -1,171 +1,198 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Award, 
-  Shield, 
-  Trophy, 
-  Star, 
-  XCircle, 
-  BookOpen, 
-  MessageSquare,
-  Users,
-  Heart,
-  CalendarDays,
-  Sparkles,
-  GitPullRequest
-} from 'lucide-react';
-import { Badge as BadgeType } from '@/types/gamification';
-import gamificationService from '@/services/gamificationService';
-import { useToast } from '@/components/ui/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
-import { Badge } from '@/components/ui/badge';
+import { Spinner } from '@/components/ui/spinner';
+import { Award, Star, Shield, Trophy, AlertCircle } from 'lucide-react';
+import * as gamificationService from '@/services/gamificationService';
 
-interface BadgesSectionProps {
-  type: 'earned' | 'available';
+interface BadgesProps {
+  type: 'available' | 'earned';
 }
 
-const BadgesSection: React.FC<BadgesSectionProps> = ({ type }) => {
-  const [badges, setBadges] = useState<BadgeType[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
-  const { user } = useAuth();
-  
-  useEffect(() => {
-    const fetchBadges = async () => {
-      if (!user) return;
-      
-      try {
-        setIsLoading(true);
-        const data = await gamificationService.getUserBadges(user.id, type);
-        setBadges(data || []);
-      } catch (error) {
-        console.error(`Error fetching ${type} badges:`, error);
-        toast({
-          title: "Error",
-          description: `Failed to load badges. Please try again later.`,
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchBadges();
-  }, [type, user, toast]);
-  
-  const getBadgeIcon = (iconName: string) => {
-    const iconProps = { className: "h-6 w-6" };
-    
-    switch (iconName?.toLowerCase()) {
-      case 'award':
-        return <Award {...iconProps} />;
-      case 'shield':
-        return <Shield {...iconProps} />;
-      case 'trophy':
-        return <Trophy {...iconProps} />;
-      case 'star':
-        return <Star {...iconProps} />;
-      case 'book':
-        return <BookOpen {...iconProps} />;
-      case 'message':
-        return <MessageSquare {...iconProps} />;
-      case 'users':
-        return <Users {...iconProps} />;
-      case 'heart':
-        return <Heart {...iconProps} />;
-      case 'calendar':
-        return <CalendarDays {...iconProps} />;
-      case 'sparkles':
-        return <Sparkles {...iconProps} />;
-      case 'git-pull-request':
-        return <GitPullRequest {...iconProps} />;
-      default:
-        return <Award {...iconProps} />;
+const BadgesSection: React.FC<BadgesProps> = ({ type }) => {
+  const auth = useAuth();
+  const { data: badges, isLoading, error } = useQuery({
+    queryKey: ['user-badges', auth.user?.id],
+    queryFn: () => gamificationService.getUserBadges(auth.user?.id || ''),
+    enabled: !!auth.user?.id,
+  });
+
+  // Mock available badges (in a real app, this would come from the API)
+  const availableBadges = [
+    {
+      id: 'badge-1',
+      name: 'First Post',
+      description: 'Create your first post',
+      icon: 'award',
+      category: 'participation'
+    },
+    {
+      id: 'badge-2',
+      name: 'Social Butterfly',
+      description: 'Follow 10 users',
+      icon: 'users',
+      category: 'social'
+    },
+    {
+      id: 'badge-3',
+      name: 'Event Attender',
+      description: 'Attend your first event',
+      icon: 'calendar',
+      category: 'events'
+    },
+    {
+      id: 'badge-4',
+      name: 'Commenter',
+      description: 'Leave 5 comments',
+      icon: 'message-square',
+      category: 'engagement'
+    },
+    {
+      id: 'badge-5',
+      name: 'Upvoter',
+      description: 'Upvote 20 posts',
+      icon: 'thumbs-up',
+      category: 'engagement'
+    }
+  ];
+
+  const getIconComponent = (iconName: string) => {
+    switch (iconName.toLowerCase()) {
+      case 'award': return <Award className="h-8 w-8" />;
+      case 'star': return <Star className="h-8 w-8" />;
+      case 'shield': return <Shield className="h-8 w-8" />;
+      case 'trophy': return <Trophy className="h-8 w-8" />;
+      default: return <Award className="h-8 w-8" />;
     }
   };
-  
-  const getCategoryColor = (category?: string) => {
-    switch (category?.toLowerCase()) {
-      case 'achievement':
-        return 'text-blue-500';
-      case 'contribution':
-        return 'text-green-500';
-      case 'milestone':
-        return 'text-purple-500';
-      case 'special':
-        return 'text-yellow-500';
-      case 'community':
-        return 'text-pink-500';
-      default:
-        return 'text-gray-500';
-    }
-  };
-  
+
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {[1, 2, 3, 4, 5, 6].map(i => (
-          <Card key={i} className="flex flex-col items-center p-6 h-full">
-            <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse mb-4" />
-            <div className="w-2/3 h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse mb-3" />
-            <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-          </Card>
-        ))}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Badges</CardTitle>
+        </CardHeader>
+        <CardContent className="min-h-[300px] flex items-center justify-center">
+          <Spinner size="lg" />
+        </CardContent>
+      </Card>
     );
   }
-  
-  if (badges.length === 0) {
+
+  if (error) {
     return (
-      <Card className="border-dashed">
-        <CardContent className="pt-6 text-center">
-          <XCircle className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            No {type} badges found
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {type === 'earned' 
-              ? 'Keep participating to earn badges!' 
-              : 'You have earned all available badges!'}
+      <Card>
+        <CardHeader>
+          <CardTitle>Badges</CardTitle>
+        </CardHeader>
+        <CardContent className="min-h-[300px] flex flex-col items-center justify-center">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-center text-muted-foreground">
+            There was an error loading badges. Please try again later.
           </p>
         </CardContent>
       </Card>
     );
   }
-  
+
+  const displayBadges = type === 'earned' ? badges : availableBadges;
+
   return (
-    <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {badges.map(badge => (
-          <Card key={badge.id} className="flex flex-col items-center p-6 h-full">
-            <div className={`p-4 rounded-full bg-gray-100 dark:bg-gray-800 mb-4 ${getCategoryColor(badge.category)}`}>
-              {getBadgeIcon(badge.icon)}
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          {type === 'earned' ? 'Earned Badges' : 'Available Badges'}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="all">
+          <TabsList className="mb-4">
+            <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="participation">Participation</TabsTrigger>
+            <TabsTrigger value="social">Social</TabsTrigger>
+            <TabsTrigger value="events">Events</TabsTrigger>
+            <TabsTrigger value="engagement">Engagement</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="all" className="mt-0">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {displayBadges && displayBadges.length > 0 ? (
+                displayBadges.map((badge) => (
+                  <div key={badge.id} className="flex flex-col items-center text-center p-4 border rounded-md">
+                    <div className="h-16 w-16 flex items-center justify-center rounded-full bg-primary/10 text-primary mb-3">
+                      {getIconComponent(badge.icon)}
+                    </div>
+                    <h3 className="font-medium">{badge.name}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {badge.description}
+                    </p>
+                    {type === 'earned' && 'earnedAt' in badge && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Earned on {new Date(badge.earnedAt).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-3 text-center py-12">
+                  <Trophy className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">
+                    {type === 'earned' ? 'No badges earned yet' : 'No badges available'}
+                  </h3>
+                  <p className="text-muted-foreground">
+                    {type === 'earned' 
+                      ? 'Complete challenges and stay active to earn badges.' 
+                      : 'Check back later for new badges to earn.'}
+                  </p>
+                </div>
+              )}
             </div>
-            
-            <h3 className="font-semibold text-center mb-2">{badge.name}</h3>
-            
-            {badge.description && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
-                {badge.description}
-              </p>
-            )}
-            
-            {badge.category && (
-              <Badge variant="outline" className="mt-3">
-                {badge.category}
-              </Badge>
-            )}
-            
-            {badge.pointsRequired && type === 'available' && (
-              <div className="mt-3 text-xs text-gray-500">
-                {badge.pointsRequired} points required
+          </TabsContent>
+          
+          {['participation', 'social', 'events', 'engagement'].map((category) => (
+            <TabsContent key={category} value={category} className="mt-0">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {displayBadges && displayBadges.filter(b => b.category === category).length > 0 ? (
+                  displayBadges
+                    .filter(b => b.category === category)
+                    .map((badge) => (
+                      <div key={badge.id} className="flex flex-col items-center text-center p-4 border rounded-md">
+                        <div className="h-16 w-16 flex items-center justify-center rounded-full bg-primary/10 text-primary mb-3">
+                          {getIconComponent(badge.icon)}
+                        </div>
+                        <h3 className="font-medium">{badge.name}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {badge.description}
+                        </p>
+                        {type === 'earned' && 'earnedAt' in badge && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Earned on {new Date(badge.earnedAt).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    ))
+                ) : (
+                  <div className="col-span-3 text-center py-12">
+                    <Trophy className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium mb-2">
+                      No {category} badges {type === 'earned' ? 'earned' : 'available'}
+                    </h3>
+                    <p className="text-muted-foreground">
+                      {type === 'earned'
+                        ? `Complete ${category} activities to earn badges in this category.`
+                        : `Check back later for new ${category} badges to earn.`}
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-          </Card>
-        ))}
-      </div>
-    </>
+            </TabsContent>
+          ))}
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 };
 

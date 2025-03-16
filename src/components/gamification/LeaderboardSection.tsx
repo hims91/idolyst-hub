@@ -1,187 +1,143 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { useQuery } from '@tanstack/react-query';
+import { Award, Trophy, Medal, AlertCircle } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { LeaderboardEntry } from '@/types/gamification';
 import * as gamificationService from '@/services/gamificationService';
-import { useToast } from '@/components/ui/use-toast';
-import { Trophy, Medal, Award } from 'lucide-react';
-import { Skeleton } from "@/components/ui/skeleton";
 
 const LeaderboardSection: React.FC = () => {
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
+  const [period, setPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'all'>('all');
   
-  useEffect(() => {
-    const fetchLeaderboard = async () => {
-      try {
-        setIsLoading(true);
-        
-        // Fetch leaderboard data
-        const data = await gamificationService.getLeaderboard(20);
-        if (data) {
-          // Ensure data has the right shape by mapping to LeaderboardEntry
-          const formattedData: LeaderboardEntry[] = data.map(entry => ({
-            userId: entry.userId,
-            id: entry.userId, // Use userId as id if missing
-            name: entry.name,
-            avatar: entry.avatar,
-            points: entry.points,
-            rank: entry.rank,
-            level: entry.level,
-            badgeCount: entry.badgeCount,
-            challengeCount: entry.challengeCount
-          }));
-          setLeaderboard(formattedData);
-        }
-      } catch (error) {
-        console.error('Error fetching leaderboard:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load leaderboard. Please try again later.",
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchLeaderboard();
-  }, [toast]);
-  
-  const getRankIcon = (rank: number) => {
-    if (rank === 1) return <Trophy className="h-6 w-6 text-yellow-500" />;
-    if (rank === 2) return <Medal className="h-6 w-6 text-gray-300" />;
-    if (rank === 3) return <Medal className="h-6 w-6 text-amber-700" />;
-    return <Award className="h-6 w-6 text-blue-500" />;
+  const { data: leaderboard, isLoading, error } = useQuery({
+    queryKey: ['leaderboard', period],
+    queryFn: () => gamificationService.getLeaderboard(period),
+  });
+
+  // Function to get initials for avatar fallback
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
   };
-  
-  const getRankClass = (rank: number) => {
-    if (rank === 1) return "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400";
-    if (rank === 2) return "bg-gray-100 text-gray-600 dark:bg-gray-600/30 dark:text-gray-300";
-    if (rank === 3) return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-500";
-    return "bg-blue-50 text-blue-500 dark:bg-blue-900/20 dark:text-blue-400";
-  };
-  
+
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className="flex items-center p-4 border rounded-lg">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <div className="ml-4 space-y-2 flex-1">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-16" />
-            </div>
-            <Skeleton className="h-8 w-16 rounded" />
-          </div>
-        ))}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Leaderboard</CardTitle>
+        </CardHeader>
+        <CardContent className="min-h-[300px] flex items-center justify-center">
+          <Spinner size="lg" />
+        </CardContent>
+      </Card>
     );
   }
-  
-  if (leaderboard.length === 0) {
+
+  if (error) {
     return (
-      <Card className="border-dashed">
-        <CardContent className="pt-6 text-center">
-          <Trophy className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            No leaderboard data yet
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Start participating to see yourself on the leaderboard!
+      <Card>
+        <CardHeader>
+          <CardTitle>Leaderboard</CardTitle>
+        </CardHeader>
+        <CardContent className="min-h-[300px] flex flex-col items-center justify-center">
+          <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-center text-muted-foreground">
+            There was an error loading the leaderboard. Please try again later.
           </p>
         </CardContent>
       </Card>
     );
   }
-  
+
   return (
-    <div className="space-y-4">
-      {/* Top 3 users in special cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {leaderboard.slice(0, 3).map((entry, index) => (
-          <Card 
-            key={entry.userId} 
-            className={`${index === 0 ? 'md:col-span-1 md:order-2 ring-2 ring-yellow-400 dark:ring-yellow-600' : 
-              index === 1 ? 'md:col-span-1 md:order-1' : 'md:col-span-1 md:order-3'}`}
-          >
-            <CardContent className="p-6 text-center">
-              <div className="mb-4 flex justify-center">
-                {getRankIcon(index + 1)}
-              </div>
-              
-              <Avatar className="h-16 w-16 mx-auto mb-4 border-2 border-primary">
-                <AvatarImage src={entry.avatar} alt={entry.name} />
-                <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                  {entry.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              
-              <h3 className="text-lg font-semibold mb-1">{entry.name}</h3>
-              
-              <div className="flex items-center justify-center mb-4">
-                <div className="font-bold text-2xl mr-1">{entry.points}</div>
-                <div className="text-xs text-muted-foreground mt-1">points</div>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-2 text-center text-xs text-muted-foreground">
-                <div>
-                  <div className="font-semibold text-sm">Level</div>
-                  <div>{entry.level}</div>
-                </div>
-                <div>
-                  <div className="font-semibold text-sm">Badges</div>
-                  <div>{entry.badgeCount || 0}</div>
-                </div>
-                <div>
-                  <div className="font-semibold text-sm">Challenges</div>
-                  <div>{entry.challengeCount || 0}</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      
-      {/* Rest of the users in a list */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>All Users</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            {leaderboard.slice(3).map((entry) => (
-              <div 
-                key={entry.userId} 
-                className="flex items-center p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-              >
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full mr-4 ${getRankClass(entry.rank)}`}>
-                  {entry.rank}
-                </div>
-                
-                <Avatar className="h-10 w-10 mr-4">
-                  <AvatarImage src={entry.avatar} alt={entry.name} />
-                  <AvatarFallback className="bg-primary/10 text-primary">
-                    {entry.name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="flex-1">
-                  <div className="font-medium">{entry.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    Level {entry.level} • {entry.badgeCount || 0} Badges
+    <Card>
+      <CardHeader>
+        <CardTitle>Community Leaderboard</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs 
+          value={period} 
+          onValueChange={(value) => setPeriod(value as 'daily' | 'weekly' | 'monthly' | 'all')}
+        >
+          <TabsList className="mb-4">
+            <TabsTrigger value="daily">Daily</TabsTrigger>
+            <TabsTrigger value="weekly">Weekly</TabsTrigger>
+            <TabsTrigger value="monthly">Monthly</TabsTrigger>
+            <TabsTrigger value="all">All Time</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value={period} className="mt-0">
+            {leaderboard && leaderboard.length > 0 ? (
+              <div className="space-y-4">
+                {leaderboard.map((entry, index) => (
+                  <div 
+                    key={entry.id} 
+                    className={`flex items-center justify-between p-3 rounded-md ${
+                      index < 3 ? 'bg-primary/5 border' : ''
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-shrink-0 w-8 text-center">
+                        {index === 0 ? (
+                          <Trophy className="h-6 w-6 text-yellow-500" />
+                        ) : index === 1 ? (
+                          <Medal className="h-6 w-6 text-gray-400" /> 
+                        ) : index === 2 ? (
+                          <Medal className="h-6 w-6 text-amber-600" />
+                        ) : (
+                          <span className="text-muted-foreground">{entry.rank}</span>
+                        )}
+                      </div>
+                      
+                      <Avatar>
+                        <AvatarImage src={entry.avatar} />
+                        <AvatarFallback>{getInitials(entry.name)}</AvatarFallback>
+                      </Avatar>
+                      
+                      <div>
+                        <div className="font-medium">{entry.name}</div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs text-muted-foreground">Level {entry.level}</span>
+                          {entry.role && (
+                            <>
+                              <span className="text-xs text-muted-foreground">•</span>
+                              <Badge variant="outline" className="text-xs px-1 py-0">
+                                {entry.role}
+                              </Badge>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Award className="h-4 w-4 text-primary" />
+                      <span className="font-medium">{entry.points.toLocaleString()} pts</span>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="font-bold">{entry.points}</div>
+                ))}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            ) : (
+              <div className="text-center py-12">
+                <Trophy className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium mb-2">No data available</h3>
+                <p className="text-muted-foreground">
+                  The leaderboard for this period is currently empty.
+                </p>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 };
 
