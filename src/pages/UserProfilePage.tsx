@@ -1,247 +1,257 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Link } from 'react-router-dom';
-import PostCard from '@/components/ui/PostCard';
-import UserFollowModal from '@/components/user/UserFollowModal';
-import { useToast } from '@/components/ui/use-toast';
-import { User, Post } from '@/types/api';
-import { MapPin, Briefcase, Globe, Calendar, Award, Settings, User as UserIcon } from 'lucide-react';
-import { format } from 'date-fns';
+
+import React, { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import userService from '@/services/userService';
+import { getUserProfile, getUserPosts, followUser, unfollowUser } from '@/services/userService';
+import PageTransition from '@/components/layout/PageTransition';
+import Header from '@/components/layout/Header';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Spinner } from '@/components/ui/spinner';
+import { User } from '@/types/api';
+import UserFollowModal from '@/components/user/UserFollowModal';
+import { useToast } from '@/hooks/use-toast';
+import Profile from '@/components/Profile';
 
-const ProfileTab: React.FC<{ user: User; currentTab: string }> = ({ user, currentTab }) => {
-  return <div>{/* Profile tab content */}</div>;
-};
-
-const UserProfilePage: React.FC = () => {
-  const { userId } = useParams<{ userId: string }>();
-  const navigate = useNavigate();
+const UserProfilePage = () => {
+  const { id: userId } = useParams<{ id: string }>();
   const { toast } = useToast();
-  const { session } = useAuthSession();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [followModalType, setFollowModalType] = useState<'followers' | 'following'>('followers');
-  const [showFollowModal, setShowFollowModal] = useState(false);
+  const auth = useAuthSession();
+  const isAuthenticated = Boolean(auth?.isValidSession);
+  const [followModalType, setFollowModalType] = useState<'followers' | 'following' | null>(null);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      if (!userId) return;
-      
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const userData = await userService.getUser(userId);
-        if (!userData) {
-          setError('User not found');
-          setLoading(false);
-          return;
-        }
-        
-        setUser(userData);
-        
-        const userPosts = await userService.getUserPosts(userId);
-        setPosts(userPosts);
-        
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to load user profile');
-        setLoading(false);
-      }
-    };
-    
-    fetchUserData();
-  }, [userId]);
+  const { data: userProfile, isLoading: profileLoading, refetch: refetchProfile } = useQuery({
+    queryKey: ['user-profile', userId],
+    queryFn: () => getUserProfile(userId || ''),
+    enabled: !!userId,
+  });
 
-  const handleFollow = async () => {
-    if (!user || !session?.user?.id) return;
-    
+  const { data: userPosts, isLoading: postsLoading } = useQuery({
+    queryKey: ['user-posts', userId],
+    queryFn: () => getUserPosts(userId || ''),
+    enabled: !!userId,
+  });
+
+  const isLoading = profileLoading || postsLoading;
+
+  const handleFollowUser = async () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to follow users",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      const success = await userService.followUser(session.user.id, user.id);
-      if (success) {
-        setUser(prev => prev ? { ...prev, isFollowing: true } : null);
+      if (userProfile?.isFollowing) {
+        await unfollowUser(userId || '');
         toast({
-          title: "Success",
-          description: `You are now following ${user.name}`,
+          title: "Unfollowed",
+          description: `You no longer follow ${userProfile.name}`,
+        });
+      } else {
+        await followUser(userId || '');
+        toast({
+          title: "Following",
+          description: `You are now following ${userProfile?.name}`,
         });
       }
-    } catch (err) {
+      refetchProfile();
+    } catch (error) {
+      console.error("Error following/unfollowing user:", error);
       toast({
         title: "Error",
-        description: "Failed to follow user",
+        description: "Failed to update follow status",
         variant: "destructive",
       });
     }
   };
 
-  const handleUnfollow = async () => {
-    if (!user || !session?.user?.id) return;
-    
-    try {
-      const success = await userService.unfollowUser(session.user.id, user.id);
-      if (success) {
-        setUser(prev => prev ? { ...prev, isFollowing: false } : null);
-        toast({
-          title: "Success",
-          description: `You have unfollowed ${user.name}`,
-        });
-      }
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to unfollow user",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleOpenFollowModal = (type: 'followers' | 'following') => {
-    setFollowModalType(type);
-    setShowFollowModal(true);
-  };
-
-  const handleCloseFollowModal = () => {
-    setShowFollowModal(false);
-  };
-
-  if (loading) {
-    return <div>Loading...</div>;
+  if (isLoading) {
+    return (
+      <PageTransition>
+        <div className="min-h-screen flex flex-col">
+          <Header title="User Profile" />
+          <main className="flex-1 container py-6 max-w-6xl">
+            <div className="flex justify-center items-center h-64">
+              <Spinner size="lg" />
+            </div>
+          </main>
+        </div>
+      </PageTransition>
+    );
   }
 
-  if (error || !user) {
-    return <div>Error: {error || 'User not found'}</div>;
+  if (!userProfile) {
+    return (
+      <PageTransition>
+        <div className="min-h-screen flex flex-col">
+          <Header title="User Not Found" />
+          <main className="flex-1 container py-6 max-w-6xl">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold">User Not Found</h2>
+              <p className="mt-2">The user you're looking for doesn't exist or has been removed.</p>
+            </div>
+          </main>
+        </div>
+      </PageTransition>
+    );
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-5xl">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-4">
-          <Avatar className="w-16 h-16">
-            <AvatarImage src={user.avatar} alt={user.name} />
-            <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="text-2xl font-bold">{user.name}</h1>
-            <div className="flex items-center space-x-2 text-gray-500">
-              {user.location && (
-                <div className="flex items-center">
-                  <MapPin className="w-4 h-4 mr-1" />
-                  <span>{user.location}</span>
+    <PageTransition>
+      <div className="min-h-screen flex flex-col">
+        <Header title={`${userProfile.name}'s Profile`} />
+        
+        <main className="flex-1 container py-6 max-w-6xl">
+          <div className="space-y-6">
+            {/* User profile header */}
+            <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
+              <div className="flex-shrink-0">
+                <img 
+                  src={userProfile.avatar || '/placeholder.svg'} 
+                  alt={userProfile.name} 
+                  className="w-24 h-24 rounded-full object-cover border-4 border-primary/10"
+                />
+              </div>
+              
+              <div className="flex-grow space-y-2">
+                <h1 className="text-3xl font-bold">{userProfile.name}</h1>
+                <div className="flex flex-wrap gap-2 items-center text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="font-semibold">{userProfile.role}</span>
+                  </span>
+                  <span>•</span>
+                  <span>Joined {userProfile.joinedOn}</span>
                 </div>
-              )}
-              {user.company && (
-                <div className="flex items-center">
-                  <Briefcase className="w-4 h-4 mr-1" />
-                  <span>{user.company}</span>
+                
+                <div className="flex gap-4 text-sm">
+                  <button 
+                    onClick={() => setFollowModalType('followers')}
+                    className="hover:underline"
+                  >
+                    <span className="font-semibold">{userProfile.followersCount}</span> Followers
+                  </button>
+                  <button 
+                    onClick={() => setFollowModalType('following')}
+                    className="hover:underline"
+                  >
+                    <span className="font-semibold">{userProfile.followingCount}</span> Following
+                  </button>
                 </div>
-              )}
-              {user.website && (
-                <div className="flex items-center">
-                  <Globe className="w-4 h-4 mr-1" />
-                  <a href={user.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                    Website
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        <div>
-          {session?.user?.id !== user.id ? (
-            user.isFollowing ? (
-              <Button variant="outline" onClick={handleUnfollow}>Unfollow</Button>
-            ) : (
-              <Button onClick={handleFollow}>Follow</Button>
-            )
-          ) : (
-            <Button asChild>
-              <Link to="/settings">
-                <Settings className="w-4 h-4 mr-2" />
-                <span>Edit Profile</span>
-              </Link>
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <Card className="mb-6">
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-gray-600 mb-4">{user.bio || 'No bio available.'}</p>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center">
-                  <UserIcon className="w-5 h-5 mr-1" />
-                  <span>{user.role || 'Member'}</span>
-                </div>
-                <div className="flex items-center">
-                  <Calendar className="w-5 h-5 mr-1" />
-                  <span>Joined {format(new Date(user.joinDate || ''), 'MMMM d, yyyy')}</span>
-                </div>
+                
+                {userProfile.bio && (
+                  <p className="text-sm mt-2">{userProfile.bio}</p>
+                )}
+              </div>
+              
+              <div className="mt-4 md:mt-0">
+                {isAuthenticated && (
+                  <Button 
+                    variant={userProfile.isFollowing ? "secondary" : "default"}
+                    onClick={handleFollowUser}
+                  >
+                    {userProfile.isFollowing ? 'Unfollow' : 'Follow'}
+                  </Button>
+                )}
               </div>
             </div>
-            <div>
-              <Button variant="secondary" onClick={() => handleOpenFollowModal('followers')}>
-                {user.followers} Followers
-              </Button>
-              <Button variant="secondary" className="ml-2" onClick={() => handleOpenFollowModal('following')}>
-                {user.following} Following
-              </Button>
-            </div>
+            
+            {/* Tabs for different sections */}
+            <Tabs defaultValue="posts" className="w-full">
+              <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto">
+                <TabsTrigger value="posts">Posts</TabsTrigger>
+                <TabsTrigger value="about">About</TabsTrigger>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="posts" className="mt-6">
+                <Profile 
+                  profile={userProfile}
+                  posts={userPosts || []}
+                  viewOnly
+                />
+              </TabsContent>
+              
+              <TabsContent value="about" className="mt-6">
+                <div className="bg-card rounded-lg p-6 space-y-4">
+                  <h2 className="text-xl font-semibold">About {userProfile.name}</h2>
+                  
+                  {userProfile.bio && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Bio</h3>
+                      <p className="mt-1">{userProfile.bio}</p>
+                    </div>
+                  )}
+                  
+                  {userProfile.location && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Location</h3>
+                      <p className="mt-1">{userProfile.location}</p>
+                    </div>
+                  )}
+                  
+                  {userProfile.website && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Website</h3>
+                      <a href={userProfile.website} target="_blank" rel="noopener noreferrer" className="mt-1 text-primary hover:underline">
+                        {userProfile.website}
+                      </a>
+                    </div>
+                  )}
+                  
+                  {userProfile.skills && userProfile.skills.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Skills</h3>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {userProfile.skills.map((skill, index) => (
+                          <span key={index} className="bg-secondary px-2 py-1 rounded-full text-xs">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {userProfile.interests && userProfile.interests.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Interests</h3>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {userProfile.interests.map((interest, index) => (
+                          <span key={index} className="bg-secondary px-2 py-1 rounded-full text-xs">
+                            {interest}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="activity" className="mt-6">
+                <div className="bg-card rounded-lg p-6">
+                  <h2 className="text-xl font-semibold">Activity</h2>
+                  <p className="text-muted-foreground mt-2">Recent activity will be shown here.</p>
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
-          <Separator className="my-4" />
-          <div>
-            {/* Display Badges */}
-            {/* <h3 className="text-lg font-semibold mb-2">Badges</h3>
-            <div className="flex items-center space-x-2">
-              <Badge>Early Supporter</Badge>
-              <Badge>Active Contributor</Badge>
-              <Badge>Community Leader</Badge>
-            </div> */}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Tabs defaultValue="posts" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="posts">Posts</TabsTrigger>
-          <TabsTrigger value="projects">Projects</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
-        </TabsList>
-        <TabsContent value="posts">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {posts.map(post => (
-              <PostCard key={post.id} post={post} />
-            ))}
-          </div>
-        </TabsContent>
-        <TabsContent value="projects">
-          <div>No projects yet.</div>
-        </TabsContent>
-        <TabsContent value="events">
-          <div>No events yet.</div>
-        </TabsContent>
-      </Tabs>
-
-      {showFollowModal && (
-        <UserFollowModal 
-          isOpen={showFollowModal}
-          userId={user.id} 
-          initialTab={followModalType}
-          userName={user.name}
-          onClose={handleCloseFollowModal}
+        </main>
+      </div>
+      
+      {/* Followers/Following Modal */}
+      {followModalType && (
+        <UserFollowModal
+          userId={userId || ''}
+          type={followModalType}
+          isOpen={!!followModalType}
+          onClose={() => setFollowModalType(null)}
         />
       )}
-    </div>
+    </PageTransition>
   );
 };
 

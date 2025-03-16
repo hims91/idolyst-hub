@@ -1,67 +1,99 @@
 
 import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useRequireAuth } from '@/hooks/use-auth-route';
-import { AdminContent } from '@/components/admin/AdminContent';
-import { AdminUsers } from '@/components/admin/AdminUsers';
-import { AdminSettings } from '@/components/admin/AdminSettings';
-import { adminService } from '@/services/api/admin';
 import { useQuery } from '@tanstack/react-query';
+import Header from '@/components/layout/Header';
+import PageTransition from '@/components/layout/PageTransition';
+import { Tab, Tabs } from '@/components/ui/tabs';
+import { Card } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/spinner';
+import AdminStats from '@/components/admin/AdminStats';
+import AdminUsers from '@/components/admin/AdminUsers';
+import AdminContent from '@/components/admin/AdminContent';
+import AdminSettings from '@/components/admin/AdminSettings';
+import { getAdminStats, getAdminUsers, getAdminContent } from '@/services/api/admin';
+import { useAuthSession } from '@/hooks/useAuthSession';
 
 const AdminPage = () => {
-  const { user, isLoading } = useRequireAuth('admin');
-  
-  const [activeTab, setActiveTab] = useState('overview');
-  
-  const { data: statsData, isLoading: isStatsLoading } = useQuery({
-    queryKey: ['admin', 'stats'],
-    queryFn: () => adminService.getStats(),
-    enabled: !!user,
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const auth = useAuthSession();
+  const isAuthenticated = auth?.isValidSession;
+
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ['admin-stats'],
+    queryFn: getAdminStats,
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
+  const { data: usersData, isLoading: usersLoading } = useQuery({
+    queryKey: ['admin-users'],
+    queryFn: getAdminUsers,
+    enabled: isAuthenticated && activeTab === 'users',
+  });
 
-  if (!user) {
+  const { data: contentData, isLoading: contentLoading } = useQuery({
+    queryKey: ['admin-content'],
+    queryFn: getAdminContent,
+    enabled: isAuthenticated && activeTab === 'content',
+  });
+
+  if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
-          <p className="mb-4">You don't have permission to access this page.</p>
+      <PageTransition>
+        <div className="min-h-screen">
+          <Header title="Admin Panel" />
+          <main className="container py-8">
+            <Card className="p-8 text-center">
+              <h2 className="text-2xl font-bold">Access Denied</h2>
+              <p className="mt-2">You don't have permission to access the admin area.</p>
+            </Card>
+          </main>
         </div>
-      </div>
+      </PageTransition>
     );
   }
-  
+
+  const isLoading = 
+    (activeTab === 'dashboard' && statsLoading) || 
+    (activeTab === 'users' && usersLoading) || 
+    (activeTab === 'content' && contentLoading);
+
   return (
-    <div className="container mx-auto py-6 px-4 max-w-7xl">
-      <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
-      
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-3 max-w-md">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
+    <PageTransition>
+      <div className="min-h-screen">
+        <Header title="Admin Panel" />
         
-        <TabsContent value="overview" className="space-y-6">
-          {isStatsLoading ? (
-            <div>Loading statistics...</div>
-          ) : (
-            <AdminContent stats={statsData || {}} />
-          )}
-        </TabsContent>
-        
-        <TabsContent value="users" className="space-y-6">
-          <AdminUsers />
-        </TabsContent>
-        
-        <TabsContent value="settings" className="space-y-6">
-          <AdminSettings />
-        </TabsContent>
-      </Tabs>
-    </div>
+        <main className="container py-8">
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* Sidebar */}
+            <div className="w-full lg:w-64 flex-shrink-0">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <Tab value="dashboard">Dashboard</Tab>
+                <Tab value="users">Users</Tab>
+                <Tab value="content">Content</Tab>
+                <Tab value="settings">Settings</Tab>
+              </Tabs>
+            </div>
+            
+            {/* Main content */}
+            <div className="flex-1">
+              {isLoading ? (
+                <div className="flex justify-center py-16">
+                  <Spinner size="lg" />
+                </div>
+              ) : (
+                <>
+                  {activeTab === 'dashboard' && <AdminStats stats={statsData || {}} />}
+                  {activeTab === 'users' && <AdminUsers users={usersData || []} />}
+                  {activeTab === 'content' && <AdminContent content={contentData || {}} />}
+                  {activeTab === 'settings' && <AdminSettings />}
+                </>
+              )}
+            </div>
+          </div>
+        </main>
+      </div>
+    </PageTransition>
   );
 };
 
