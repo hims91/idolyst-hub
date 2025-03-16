@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Shell } from '@/components/ui/shell';
 import { PageTitle } from '@/components/ui/page-title';
 import {
@@ -28,14 +28,14 @@ import {
   Edit,
   Trash2,
   ChevronLeft,
-  ExternalLink,
+  AlertTriangle,
 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
-import { EventWithDetails } from '@/types/api';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Helmet } from 'react-helmet-async';
 import eventService from '@/services/eventService';
-import { notificationService } from '@/services/notificationService';
-import { Helmet } from 'react-helmet';
 
 const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -43,7 +43,7 @@ const EventDetailPage: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const eventId = id || '';
 
@@ -62,7 +62,7 @@ const EventDetailPage: React.FC = () => {
     isLoading: attendeesLoading,
   } = useQuery({
     queryKey: ['eventAttendees', eventId],
-    queryFn: () => [], // Placeholder for eventService.getEventAttendees(eventId)
+    queryFn: () => eventService.getEventAttendees(eventId),
     enabled: !!eventId && !!event,
   });
 
@@ -71,21 +71,9 @@ const EventDetailPage: React.FC = () => {
     onSuccess: () => {
       toast({
         title: 'Successfully registered!',
-        description: `You have been registered for this event`,
+        description: 'You have been registered for this event',
       });
       queryClient.invalidateQueries({ queryKey: ['event', eventId] });
-      
-      // Send notification to event organizer
-      if (event?.organizer && user) {
-        notificationService.createNotification({
-          userId: event.organizer.id,
-          title: 'New Event Registration',
-          message: `${user.name} has registered for your event: ${event.title}`,
-          type: 'event',
-          linkTo: `/events/${eventId}`,
-          senderId: user.id
-        });
-      }
     },
     onError: (error) => {
       toast({
@@ -101,7 +89,7 @@ const EventDetailPage: React.FC = () => {
     onSuccess: () => {
       toast({
         title: 'Registration cancelled',
-        description: `You have cancelled your registration`,
+        description: 'You have cancelled your registration',
       });
       queryClient.invalidateQueries({ queryKey: ['event', eventId] });
     },
@@ -152,18 +140,37 @@ const EventDetailPage: React.FC = () => {
 
   const handleShareClick = async () => {
     try {
-      await navigator.share({
-        title: event?.title,
-        text: event?.description,
-        url: window.location.href,
-      });
+      if (navigator.share) {
+        await navigator.share({
+          title: event?.title,
+          text: event?.description,
+          url: window.location.href,
+        });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast({
+          title: 'Link copied to clipboard',
+          description: 'You can now share this event with others',
+        });
+      }
     } catch (error) {
+      console.error("Error sharing:", error);
+      
       // Fallback for browsers that don't support navigator.share
-      navigator.clipboard.writeText(window.location.href);
-      toast({
-        title: 'Link copied to clipboard',
-        description: 'You can now share this event with others',
-      });
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        toast({
+          title: 'Link copied to clipboard',
+          description: 'You can now share this event with others',
+        });
+      } catch (clipboardError) {
+        console.error("Error copying to clipboard:", clipboardError);
+        toast({
+          variant: "destructive",
+          title: "Error sharing",
+          description: "Could not share or copy the event link",
+        });
+      }
     }
   };
 
@@ -172,23 +179,46 @@ const EventDetailPage: React.FC = () => {
   };
 
   const handleDeleteClick = () => {
-    setShowConfirmDelete(true);
+    setShowDeleteDialog(true);
   };
 
   const confirmDelete = () => {
     deleteMutation();
+    setShowDeleteDialog(false);
   };
 
-  const cancelDelete = () => {
-    setShowConfirmDelete(false);
+  const formatDateTime = (dateString: string, timeString?: string) => {
+    try {
+      const date = parseISO(dateString);
+      const formattedDate = format(date, 'PPP');
+      return timeString ? `${formattedDate} at ${timeString}` : formattedDate;
+    } catch (error) {
+      console.error("Date parsing error:", error);
+      return dateString;
+    }
   };
 
-  const formatDateTime = (dateString: string) => {
-    return format(new Date(dateString), 'PPP p');
+  const isOrganizer = event?.organizer?.id === user?.id;
+  
+  // Determine if event is past, current, or upcoming
+  const getEventStatus = () => {
+    if (!event) return 'upcoming';
+    
+    const now = new Date();
+    const startDate = parseISO(event.startDate);
+    const endDate = parseISO(event.endDate);
+    
+    if (isAfter(now, endDate)) {
+      return 'past';
+    } else if (isAfter(now, startDate) && isBefore(now, endDate)) {
+      return 'ongoing';
+    } else {
+      return 'upcoming';
+    }
   };
-
-  const isOrganizer = event?.organizer.id === user?.id;
-  const isPastEvent = event?.status === 'past';
+  
+  const eventStatus = event?.status || getEventStatus();
+  const isPastEvent = eventStatus === 'past';
 
   if (isLoading) {
     return (
@@ -220,7 +250,7 @@ const EventDetailPage: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>{event.title} | Events</title>
+        <title>{event.title} | Community Platform</title>
       </Helmet>
 
       <Shell>
@@ -241,9 +271,9 @@ const EventDetailPage: React.FC = () => {
                   <div>
                     <div className="flex items-center mb-2 space-x-2">
                       <Badge variant={isPastEvent ? 'outline' : 'default'}>
-                        {event.status === 'upcoming'
+                        {eventStatus === 'upcoming'
                           ? 'Upcoming'
-                          : event.status === 'ongoing'
+                          : eventStatus === 'ongoing'
                           ? 'Happening Now'
                           : 'Past Event'}
                       </Badge>
@@ -261,28 +291,42 @@ const EventDetailPage: React.FC = () => {
                       {event.title}
                     </CardTitle>
                   </div>
-                  {!isPastEvent && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={handleShareClick}
-                    >
-                      <Share2 className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={handleShareClick}
+                  >
+                    <Share2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
+                {event.imageUrl && (
+                  <div className="rounded-md overflow-hidden h-[200px] md:h-[300px]">
+                    <img 
+                      src={event.imageUrl} 
+                      alt={event.title} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <div className="flex items-center text-sm">
                       <Calendar className="h-4 w-4 mr-2 text-primary" />
                       <span>
-                        {formatDateTime(event.startDate)}
-                        {event.startDate !== event.endDate &&
-                          ` - ${formatDateTime(event.endDate)}`}
+                        {formatDateTime(event.startDate, event.startTime)}
                       </span>
                     </div>
+                    {event.startDate !== event.endDate && (
+                      <div className="flex items-center text-sm">
+                        <Clock className="h-4 w-4 mr-2 text-primary" />
+                        <span>
+                          To: {formatDateTime(event.endDate, event.endTime)}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center text-sm">
                       <MapPin className="h-4 w-4 mr-2 text-primary" />
                       <span>{event.location || 'Online'}</span>
@@ -300,8 +344,8 @@ const EventDetailPage: React.FC = () => {
                       <Avatar className="h-10 w-10">
                         <AvatarImage src={event.organizer.avatar} />
                         <AvatarFallback>
-                          {event.organizer.name
-                            .split(' ')
+                          {event.organizer?.name
+                            ?.split(' ')
                             .map((n) => n[0])
                             .join('')}
                         </AvatarFallback>
@@ -324,7 +368,7 @@ const EventDetailPage: React.FC = () => {
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col sm:flex-row items-center gap-3">
-                {!isPastEvent && !isOrganizer && (
+                {eventStatus !== 'past' && !isOrganizer && (
                   <Button
                     className="w-full sm:w-auto"
                     variant={event.isRegistered ? 'destructive' : 'default'}
@@ -347,7 +391,7 @@ const EventDetailPage: React.FC = () => {
                   </Button>
                 )}
 
-                {isOrganizer && !isPastEvent && (
+                {isOrganizer && (
                   <>
                     <Button
                       className="w-full sm:w-auto"
@@ -357,39 +401,61 @@ const EventDetailPage: React.FC = () => {
                       <Edit className="h-4 w-4 mr-2" />
                       Edit Event
                     </Button>
-                    {!showConfirmDelete ? (
-                      <Button
-                        className="w-full sm:w-auto"
-                        variant="destructive"
-                        onClick={handleDeleteClick}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Event
-                      </Button>
-                    ) : (
-                      <>
+                    
+                    <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                      <DialogTrigger asChild>
                         <Button
                           className="w-full sm:w-auto"
                           variant="destructive"
-                          onClick={confirmDelete}
-                          disabled={isDeleting}
                         >
-                          {isDeleting ? <Spinner size="sm" /> : 'Confirm Delete'}
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Event
                         </Button>
-                        <Button
-                          className="w-full sm:w-auto"
-                          variant="outline"
-                          onClick={cancelDelete}
-                          disabled={isDeleting}
-                        >
-                          Cancel
-                        </Button>
-                      </>
-                    )}
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Delete Event</DialogTitle>
+                          <DialogDescription>
+                            Are you sure you want to delete this event? This action cannot be undone.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setShowDeleteDialog(false)}
+                            disabled={isDeleting}
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            variant="destructive" 
+                            onClick={confirmDelete}
+                            disabled={isDeleting}
+                          >
+                            {isDeleting ? (
+                              <Spinner size="sm" className="mr-2" />
+                            ) : (
+                              <Trash2 className="h-4 w-4 mr-2" />
+                            )}
+                            Delete
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </>
                 )}
               </CardFooter>
             </Card>
+            
+            {event.maxAttendees && event.currentAttendees >= event.maxAttendees && !event.isRegistered && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Event is full</AlertTitle>
+                <AlertDescription>
+                  This event has reached its maximum capacity of {event.maxAttendees} attendees.
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -397,7 +463,7 @@ const EventDetailPage: React.FC = () => {
               <CardHeader>
                 <CardTitle>Attendees</CardTitle>
                 <CardDescription>
-                  {event.currentAttendees} people attending
+                  {event.currentAttendees} {event.currentAttendees === 1 ? 'person' : 'people'} attending
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -438,6 +504,34 @@ const EventDetailPage: React.FC = () => {
                 )}
               </CardContent>
             </Card>
+            
+            {event.isRegistered && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Your Registration</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Status:</span>
+                    <Badge>Registered</Badge>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    onClick={handleRegisterClick}
+                    disabled={isCancelling}
+                  >
+                    {isCancelling ? (
+                      <Spinner size="sm" className="mr-2" />
+                    ) : (
+                      'Cancel Registration'
+                    )}
+                  </Button>
+                </CardFooter>
+              </Card>
+            )}
           </div>
         </div>
       </Shell>

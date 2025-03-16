@@ -10,9 +10,9 @@ import AdminContent from '@/components/admin/AdminContent';
 import AdminSettings from '@/components/admin/AdminSettings';
 import { useRequireAuth } from '@/hooks/use-auth-route';
 import { Spinner } from '@/components/ui/spinner';
-import { Helmet } from 'react-helmet-async'; // Updated to react-helmet-async
+import { Helmet } from 'react-helmet-async';
 import adminService from '@/services/api/admin';
-import { AdminStats as AdminStatsType, AdminUser } from '@/types/api'; // Import the type, not the value
+import { AdminStats as AdminStatsType, AdminUser } from '@/types/api';
 
 const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -83,11 +83,11 @@ const AdminPage: React.FC = () => {
           </TabsList>
           
           <TabsContent value="dashboard">
-            {stats ? <AdminStats stats={stats as AdminStatsType} /> : <AdminStats stats={{} as AdminStatsType} />}
+            {stats ? <AdminStats stats={stats as unknown as AdminStatsType} /> : <AdminStats stats={{} as AdminStatsType} />}
           </TabsContent>
           
           <TabsContent value="users">
-            {users && <AdminUsers users={users} />}
+            {users && <AdminUsers users={users as AdminUser[]} />}
           </TabsContent>
           
           <TabsContent value="content">

@@ -1,12 +1,21 @@
+
 import React, { useState } from 'react';
-import Events from '@/components/Events';
 import { useQuery } from '@tanstack/react-query';
-import eventService from '@/services/eventService';
+import { Shell } from '@/components/ui/shell';
+import { PageTitle } from '@/components/ui/page-title';
+import { Button } from '@/components/ui/button';
+import { PlusIcon } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
-import { EventFilter } from '@/types/api';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { Helmet } from 'react-helmet-async';
+import Events from '@/components/Events';
+import eventService from '@/services/eventService';
 
 const EventsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   const { data: events, isLoading: eventsLoading } = useQuery({
     queryKey: ['events', currentPage],
@@ -19,38 +28,64 @@ const EventsPage: React.FC = () => {
     initialData: []
   });
 
+  const handleCreateEvent = () => {
+    navigate('/events/create');
+  };
+
   if (eventsLoading) {
     return (
-      <>
-        <div className="p-8">
-          <h1 className="text-2xl font-bold mb-4">Events</h1>
-          <p className="text-gray-500 mb-8">Find and participate in upcoming events, both virtual and in-person.</p>
-          <div className="flex justify-center items-center py-12">
-            <Spinner size="lg" />
-          </div>
+      <Shell>
+        <Helmet>
+          <title>Events | Community Platform</title>
+        </Helmet>
+        <div className="flex justify-between items-center mb-6">
+          <PageTitle 
+            heading="Events" 
+            text="Find and participate in upcoming events, both virtual and in-person."
+          />
+          {user && (
+            <Button onClick={handleCreateEvent}>
+              <PlusIcon className="mr-2 h-4 w-4" />
+              Create Event
+            </Button>
+          )}
         </div>
-      </>
+        <div className="flex justify-center items-center py-12">
+          <Spinner size="lg" />
+        </div>
+      </Shell>
     );
   }
 
   return (
-    <>
-      <div className="p-8">
-        <h1 className="text-2xl font-bold mb-4">Events</h1>
-        <p className="text-gray-500 mb-8">Find and participate in upcoming events, both virtual and in-person.</p>
-        
-        {events && (
-          <Events 
-            eventData={events?.items || []} 
-            categories={categories || []}
-            totalEvents={events?.total || 0}
-            currentPage={events?.currentPage || 1}
-            totalPages={events?.totalPages || 1}
-            onPageChange={setCurrentPage}
-          />
+    <Shell>
+      <Helmet>
+        <title>Events | Community Platform</title>
+      </Helmet>
+      <div className="flex justify-between items-center mb-6">
+        <PageTitle 
+          heading="Events" 
+          text="Find and participate in upcoming events, both virtual and in-person."
+        />
+        {user && (
+          <Button onClick={handleCreateEvent}>
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Create Event
+          </Button>
         )}
       </div>
-    </>
+      
+      {events && (
+        <Events 
+          eventData={events?.items || []} 
+          categories={categories || []}
+          totalEvents={events?.total || 0}
+          currentPage={events?.currentPage || 1}
+          totalPages={events?.totalPages || 1}
+          onPageChange={setCurrentPage}
+        />
+      )}
+    </Shell>
   );
 };
 

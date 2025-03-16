@@ -113,3 +113,64 @@ export const checkColumnExists = async (
     return false;
   }
 };
+
+/**
+ * Safe getter for nested properties in Supabase responses
+ * Handles both error objects and valid responses
+ * @param obj The object to get property from
+ * @param key The key to access
+ * @param defaultValue Default value to return if property doesn't exist
+ */
+export const safeGetProperty = <T, K extends keyof T>(
+  obj: T | null | undefined | { code?: string; message?: string },
+  key: K,
+  defaultValue: any = undefined
+): any => {
+  if (!obj || typeof obj !== 'object' || 'code' in obj || 'message' in obj) {
+    return defaultValue;
+  }
+  
+  if (Object.prototype.hasOwnProperty.call(obj, key)) {
+    return (obj as T)[key];
+  }
+  
+  return defaultValue;
+};
+
+/**
+ * Safely formats a Supabase event object to our Event type
+ * Handles potential error responses gracefully
+ * @param event The event data from Supabase
+ * @returns Formatted Event object
+ */
+export const formatEventFromSupabase = (event: any): any => {
+  if (!event || 'code' in event || 'message' in event) {
+    return null;
+  }
+  
+  return {
+    id: safeGetProperty(event, 'id', ''),
+    title: safeGetProperty(event, 'title', ''),
+    description: safeGetProperty(event, 'description', ''),
+    location: safeGetProperty(event, 'location', ''),
+    isVirtual: safeGetProperty(event, 'is_virtual', false),
+    startDate: safeGetProperty(event, 'start_date', ''),
+    startTime: safeGetProperty(event, 'start_time', ''),
+    endDate: safeGetProperty(event, 'end_date', ''),
+    endTime: safeGetProperty(event, 'end_time', ''),
+    category: safeGetProperty(event, 'category', 'General'),
+    imageUrl: safeGetProperty(event, 'image_url', ''),
+    maxAttendees: safeGetProperty(event, 'max_attendees', null),
+    currentAttendees: safeGetProperty(event, 'current_attendees', 0),
+    organizer: {
+      id: safeGetProperty(event.organizer, 'id', ''),
+      name: safeGetProperty(event.organizer, 'name', 'Unknown'),
+      avatar: safeGetProperty(event.organizer, 'avatar', ''),
+      role: safeGetProperty(event.organizer, 'role', 'member')
+    },
+    createdAt: safeGetProperty(event, 'created_at', ''),
+    updatedAt: safeGetProperty(event, 'updated_at', ''),
+    isRegistered: !!safeGetProperty(event, 'is_registered', false),
+    status: safeGetProperty(event, 'status', 'upcoming')
+  };
+};

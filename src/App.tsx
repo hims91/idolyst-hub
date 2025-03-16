@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +13,8 @@ import ProfilePage from "./pages/ProfilePage";
 import UserProfilePage from "./pages/UserProfilePage";
 import PostDetailPage from "./pages/PostDetailPage";
 import EventsPage from "./pages/EventsPage";
+import EventFormPage from "./pages/EventFormPage";
+import EventDetailPage from "./pages/EventDetailPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
@@ -52,6 +53,9 @@ const App = () => (
                         <Route path="/user/:userId" element={<UserProfilePage />} />
                         <Route path="/post/:postId" element={<PostDetailPage />} />
                         <Route path="/events" element={<EventsPage />} />
+                        <Route path="/events/create" element={<EventFormPage />} />
+                        <Route path="/events/edit/:eventId" element={<EventFormPage />} />
+                        <Route path="/events/:id" element={<EventDetailPage />} />
                         <Route path="/community" element={<CommunityPage />} />
                         <Route path="/admin" element={<AdminPage />} />
                         <Route path="*" element={<NotFound />} />

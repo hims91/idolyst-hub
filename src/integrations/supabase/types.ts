@@ -146,6 +146,53 @@ export type Database = {
           },
         ]
       }
+      conversation_participants: {
+        Row: {
+          conversation_id: string
+          created_at: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       event_attendees: {
         Row: {
           event_id: string | null
@@ -185,6 +232,7 @@ export type Database = {
           current_attendees: number | null
           description: string
           end_date: string
+          end_time: string | null
           id: string
           image_url: string | null
           is_virtual: boolean | null
@@ -192,6 +240,7 @@ export type Database = {
           max_attendees: number | null
           organizer_id: string | null
           start_date: string
+          start_time: string | null
           status: string | null
           title: string
           updated_at: string | null
@@ -202,6 +251,7 @@ export type Database = {
           current_attendees?: number | null
           description: string
           end_date: string
+          end_time?: string | null
           id?: string
           image_url?: string | null
           is_virtual?: boolean | null
@@ -209,6 +259,7 @@ export type Database = {
           max_attendees?: number | null
           organizer_id?: string | null
           start_date: string
+          start_time?: string | null
           status?: string | null
           title: string
           updated_at?: string | null
@@ -219,6 +270,7 @@ export type Database = {
           current_attendees?: number | null
           description?: string
           end_date?: string
+          end_time?: string | null
           id?: string
           image_url?: string | null
           is_virtual?: boolean | null
@@ -226,9 +278,81 @@ export type Database = {
           max_attendees?: number | null
           organizer_id?: string | null
           start_date?: string
+          start_time?: string | null
           status?: string | null
           title?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          link_to: string | null
+          message: string
+          sender_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          link_to?: string | null
+          message: string
+          sender_id?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          link_to?: string | null
+          message?: string
+          sender_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -539,6 +663,13 @@ export type Database = {
           transaction_type_text: string
           ref_id?: string
           ref_type?: string
+        }
+        Returns: boolean
+      }
+      check_column_exists: {
+        Args: {
+          table_name: string
+          column_name: string
         }
         Returns: boolean
       }
