@@ -87,16 +87,16 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
 
     return {
       id: userData.id,
-      name: userData.name || userData.username || 'User',
-      email: userData.email || '',
+      name: userData.name || 'User',
+      email: '', // Email is not stored in profiles table for security reasons
       bio: userData.bio || '',
-      avatar: userData.avatar_url || '',
+      avatar: userData.avatar || '',
       role: userData.role || 'member',
       joinedOn: formatDate(userData.created_at),
       website: userData.website || '',
       location: userData.location || '',
       skills: userData.skills || [],
-      interests: userData.interests || [],
+      interests: [],
       followersCount: followersCount || 0,
       followingCount: followingCount || 0,
       isFollowing
@@ -115,9 +115,9 @@ export const getUserPosts = async (userId: string): Promise<Post[]> => {
         *,
         author:user_id (
           id,
-          name:raw_user_meta_data->name,
-          avatar:raw_user_meta_data->avatar_url,
-          role:raw_user_meta_data->role
+          name,
+          avatar,
+          role
         )
       `)
       .eq('user_id', userId)
@@ -134,31 +134,37 @@ export const getUserPosts = async (userId: string): Promise<Post[]> => {
     }
 
     return data.map(post => {
-      // Handle the case where author might be null
-      const author = post.author ? {
-        id: post.author.id || '',
-        name: post.author.name || 'Unknown',
-        avatar: post.author.avatar || '',
-        role: post.author.role || 'member'
-      } : {
-        id: userId,
-        name: 'Unknown',
-        avatar: '',
-        role: 'member'
-      };
+      // Handle the case where author might be null or an error
+      let author: User;
+      
+      if (!post.author || typeof post.author === 'object' && 'code' in post.author) {
+        author = {
+          id: userId,
+          name: 'Unknown',
+          avatar: '',
+          role: 'member'
+        };
+      } else {
+        author = {
+          id: post.author.id || '',
+          name: post.author.name || 'Unknown',
+          avatar: post.author.avatar || '',
+          role: post.author.role || 'member'
+        };
+      }
 
       return {
         id: post.id,
-        title: post.title,
+        title: post.title || '',
         content: post.content,
-        category: post.category || 'General',
+        category: 'General',
         author,
         createdAt: post.created_at,
         updatedAt: post.updated_at,
         timeAgo: formatTimeAgo(post.created_at),
         upvotes: post.upvotes || 0,
         downvotes: post.downvotes || 0,
-        commentCount: post.comment_count || 0,
+        commentCount: 0,
         comments: [],
         isUpvoted: false,
         isDownvoted: false,
@@ -179,10 +185,10 @@ export const getFollowers = async (userId: string): Promise<User[]> => {
         *,
         follower:follower_id (
           id,
-          name:raw_user_meta_data->name,
-          avatar:raw_user_meta_data->avatar_url,
-          role:raw_user_meta_data->role,
-          bio:raw_user_meta_data->bio
+          name,
+          avatar,
+          role,
+          bio
         )
       `)
       .eq('following_id', userId);
@@ -193,8 +199,8 @@ export const getFollowers = async (userId: string): Promise<User[]> => {
     }
 
     return data.map(item => {
-      // Handle the case where follower might be null
-      if (!item.follower) {
+      // Handle the case where follower might be null or an error
+      if (!item.follower || typeof item.follower === 'object' && 'code' in item.follower) {
         return {
           id: item.follower_id,
           name: 'Unknown User',
@@ -228,10 +234,10 @@ export const getFollowing = async (userId: string): Promise<User[]> => {
         *,
         following:following_id (
           id,
-          name:raw_user_meta_data->name,
-          avatar:raw_user_meta_data->avatar_url,
-          role:raw_user_meta_data->role,
-          bio:raw_user_meta_data->bio
+          name,
+          avatar,
+          role,
+          bio
         )
       `)
       .eq('follower_id', userId);
@@ -242,8 +248,8 @@ export const getFollowing = async (userId: string): Promise<User[]> => {
     }
 
     return data.map(item => {
-      // Handle the case where following might be null
-      if (!item.following) {
+      // Handle the case where following might be null or an error
+      if (!item.following || typeof item.following === 'object' && 'code' in item.following) {
         return {
           id: item.following_id,
           name: 'Unknown User',

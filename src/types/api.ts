@@ -1,4 +1,3 @@
-
 // User types
 export interface User {
   id: string;
@@ -73,13 +72,57 @@ export interface DataPoint {
   [key: string]: any;
 }
 
-// Events types
-export interface Event {
+export interface AdminContentState {
+  page: number;
+  search: string;
+  status: 'all' | 'active' | 'pending' | 'rejected' | 'suspended';
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+}
+
+export interface AdminPost {
   id: string;
+  title: string;
+  author: {
+    id: string;
+    name: string;
+  } | string;
+  category: string;
+  status: string;
+  comments: number;
+  published: string;
+}
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface EmailSettingsForm {
+  marketingEmails: boolean;
+  notificationEmails: boolean;
+  weeklyDigest: boolean;
+  newFollowerAlert: boolean;
+}
+
+// Event types
+export interface EventFilter {
+  category?: string;
+  location?: string;
+  dateRange?: [Date | null, Date | null];
+  isVirtual?: boolean;
+  searchQuery?: string;
+}
+
+export interface EventFormData {
   title: string;
   description: string;
   location?: string;
-  isVirtual?: boolean;
+  isVirtual: boolean;
   startDate: string;
   startTime: string;
   endDate: string;
@@ -87,117 +130,53 @@ export interface Event {
   category: string;
   imageUrl?: string;
   maxAttendees?: number;
-  currentAttendees: number;
-  organizer: User;
-  createdAt?: string;
-  updatedAt?: string;
 }
 
-export interface EventCategory {
+// Post Details
+export interface PostDetail extends Post {
+  relatedPosts?: Post[];
+  tags?: string[];
+}
+
+// Message System
+export interface Message {
   id: string;
-  name: string;
-}
-
-export interface EventWithDetails extends Event {
-  status: 'upcoming' | 'ongoing' | 'past';
-  timeAgo: string;
-  attendees: number;
-  attendeesList?: EventAttendee[];
-  isRegistered: boolean;
-}
-
-export interface EventAttendee {
-  id: string;
-  status: string;
-  registeredAt: string;
-  user: User | null;
-}
-
-// Pagination
-export interface PaginatedResponse<T> {
-  items: T[];
-  total: number;
-  currentPage: number;
-  totalPages: number;
-  hasMore: boolean;
-}
-
-// Crowdfunding types
-export interface CrowdfundingProject {
-  id: string;
-  title: string;
-  description: string;
-  shortDescription: string;
-  goal: number;
-  current: number;
-  currency: string;
-  progress: number;
-  imageUrl: string;
-  creator: User;
-  category: string;
-  startDate: string;
-  endDate: string;
-  daysLeft: number;
-  backers: number;
-  updates: number;
-  isBacked: boolean;
-  isBookmarked: boolean;
-}
-
-export interface ProjectUpdate {
-  id: string;
-  title: string;
+  senderId: string;
+  receiverId: string;
   content: string;
-  date: string;
-  timeAgo: string;
-  author: User;
+  createdAt: string;
+  isRead: boolean;
+  sender?: User;
+  receiver?: User;
 }
 
-export interface ProjectReward {
+export interface Conversation {
   id: string;
+  participantIds: string[];
+  lastMessage?: Message;
+  unreadCount: number;
+  updatedAt: string;
+  participants: User[];
+}
+
+// Notifications
+export interface Notification {
+  id: string;
+  userId: string;
   title: string;
-  description: string;
-  amount: number;
-  currency: string;
-  claimed: number;
-  limit?: number;
-  estimatedDelivery: string;
-  includes: string[];
+  message: string;
+  type: 'follow' | 'like' | 'comment' | 'message' | 'event' | 'badge' | 'system';
+  isRead: boolean;
+  createdAt: string;
+  linkTo?: string;
+  sender?: User;
 }
 
-// Gamification types
-export interface Badge {
-  id: string;
-  name: string;
-  description: string;
-  imageUrl: string;
-  category: string;
-  earnedAt?: string;
-  progress?: number;
-  isEarned: boolean;
-}
-
-export interface Challenge {
-  id: string;
-  name: string;
-  description: string;
-  imageUrl: string;
-  category: string;
-  reward: number;
-  rewardType: 'points' | 'badge' | 'both';
-  progress: number;
-  total: number;
-  isCompleted: boolean;
-  endDate?: string;
-  daysLeft?: number;
-  badgeReward?: Badge;
-}
-
-export interface LeaderboardEntry {
-  position: number;
-  user: User;
-  points: number;
-  badges: number;
-  streak: number;
-  change: number;
+// Gamification
+export interface UserLevel {
+  level: number;
+  title: string;
+  pointsRequired: number;
+  pointsToNextLevel: number;
+  progressPercentage: number;
 }

@@ -1,85 +1,54 @@
 
-// Gamification types
 export interface Badge {
   id: string;
   name: string;
-  icon: string;
   description?: string;
   category?: string;
+  icon: string;
+  earnedAt?: string;
   pointsRequired?: number;
-}
-
-export interface UserBadge {
-  id: string;
-  userId: string;
-  badgeId: string;
-  badge?: Badge;
-  earnedAt: string;
+  progress?: number;
+  isEarned: boolean;
 }
 
 export interface Challenge {
   id: string;
   title: string;
   description: string;
-  requirements?: string;
   points: number;
-  startDate?: string; 
+  requirements?: string;
+  startDate?: string;
   endDate?: string;
   isActive: boolean;
 }
 
 export interface UserChallenge {
   id: string;
-  userId: string;
   challengeId: string;
-  challenge?: Challenge;
-  joinedAt: string;
+  userId: string;
   progress: number;
   isCompleted: boolean;
+  joinedAt: string;
   completedAt?: string;
+  challenge?: Challenge | null;
 }
 
 export interface LeaderboardEntry {
   id: string;
+  rank: number;
   name: string;
   avatar?: string;
-  points: number;
-  rank: number;
-  level: number;
-  badgeCount: number;
-  challengeCount: number;
-}
-
-export interface UserStats {
-  userId: string;
   points: number;
   level: number;
   badgeCount: number;
   challengeCount: number;
   completedChallengeCount: number;
-  rank: number;
 }
 
-export interface PointTransaction {
-  id: string;
-  userId: string;
-  amount: number;
-  description?: string;
-  transactionType: string;
-  referenceId?: string;
-  referenceType?: string;
-  createdAt: string;
-}
-
-// Two-factor authentication types
-export interface TwoFactorAuthSetupResponse {
-  success: boolean;
-  secret?: string;
-  qrCodeUrl?: string;
-  error?: string;
-}
-
-export interface TwoFactorAuthVerifyResponse {
-  success: boolean;
-  error?: string;
+export interface UserLevel {
+  level: number;
+  title: string;
+  pointsRequired: number;
+  pointsToNextLevel: number;
+  progressPercentage: number;
 }

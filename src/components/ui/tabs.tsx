@@ -1,3 +1,6 @@
+
+"use client"
+
 import * as React from "react"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
 
@@ -50,4 +53,7 @@ const TabsContent = React.forwardRef<
 ))
 TabsContent.displayName = TabsPrimitive.Content.displayName
 
-export { Tabs, TabsList, TabsTrigger, TabsContent }
+// Add Tab component (alias for TabsTrigger for backward compatibility)
+const Tab = TabsTrigger
+
+export { Tabs, TabsList, TabsTrigger, TabsContent, Tab }
