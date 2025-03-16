@@ -1,3 +1,4 @@
+
 import { Badge, Challenge, LeaderboardEntry, UserBadge, UserChallenge } from './gamification';
 
 // General API response types
@@ -215,4 +216,61 @@ export interface UserConnection {
   avatar?: string;
   company?: string;
   isFollowing?: boolean;
+}
+
+// Event types
+export interface Event {
+  id: string;
+  title: string;
+  description: string;
+  location: string;
+  isVirtual: boolean;
+  startDate: string;
+  endDate: string;
+  category: string;
+  maxAttendees: number | null;
+  currentAttendees: number;
+  imageUrl?: string;
+  status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
+  organizer: {
+    id: string;
+    name: string;
+    avatar?: string;
+  };
+  isRegistered?: boolean;
+  tags?: string[];
+  createdAt: string;
+}
+
+export interface EventFormData {
+  title: string;
+  description: string;
+  location: string;
+  isVirtual: boolean;
+  startDate: string;
+  endDate: string;
+  category: string;
+  maxAttendees?: number;
+  imageUrl?: string;
+  tags?: string[];
+}
+
+export interface EventFilter {
+  query?: string;
+  category?: string;
+  startDate?: string;
+  endDate?: string;
+  isVirtual?: boolean;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface EventAttendee {
+  id: string;
+  name: string;
+  avatar?: string;
+  role?: string;
+  registeredAt: string;
+  status: 'registered' | 'attended' | 'cancelled';
 }

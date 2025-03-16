@@ -146,6 +146,92 @@ export type Database = {
           },
         ]
       }
+      event_attendees: {
+        Row: {
+          event_id: string | null
+          id: string
+          registered_at: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          event_id?: string | null
+          id?: string
+          registered_at?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          event_id?: string | null
+          id?: string
+          registered_at?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_attendees_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          current_attendees: number | null
+          description: string
+          end_date: string
+          id: string
+          image_url: string | null
+          is_virtual: boolean | null
+          location: string | null
+          max_attendees: number | null
+          organizer_id: string | null
+          start_date: string
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          current_attendees?: number | null
+          description: string
+          end_date: string
+          id?: string
+          image_url?: string | null
+          is_virtual?: boolean | null
+          location?: string | null
+          max_attendees?: number | null
+          organizer_id?: string | null
+          start_date: string
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          current_attendees?: number | null
+          description?: string
+          end_date?: string
+          id?: string
+          image_url?: string | null
+          is_virtual?: boolean | null
+          location?: string | null
+          max_attendees?: number | null
+          organizer_id?: string | null
+          start_date?: string
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       point_transactions: {
         Row: {
           amount: number
