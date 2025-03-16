@@ -273,7 +273,7 @@ export interface UserProfileProps {
   onFollowingClick?: () => void;
 }
 
-// Add Challenge type that was missing
+// Add Challenge type definition
 export interface Challenge {
   id: string;
   title: string;
@@ -281,4 +281,16 @@ export interface Challenge {
   points: number;
   requirements: string;
   isActive: boolean;
+}
+
+// Add UserChallenge interface if needed 
+export interface UserChallenge {
+  id: string;
+  userId: string;
+  challengeId: string;
+  progress: number;
+  isCompleted: boolean;
+  joinedAt: string;
+  completedAt?: string;
+  challenge?: Challenge;
 }

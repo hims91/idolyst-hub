@@ -4,105 +4,48 @@ import { formatTimeAgo } from "@/lib/utils";
 
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
-    // Fetch the user profile
-    const { data: userData, error: userError } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
-    if (userError && userError.code !== 'PGRST116') {
-      console.error("Error fetching user profile:", userError);
-      throw new Error(userError.message);
+    if (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
     }
 
-    if (!userData) {
-      // Try to fetch from auth.users if not in profiles
-      const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId);
-      
-      if (authError) {
-        console.error("Error fetching auth user:", authError);
-        return null;
+    if (!data) {
+      return null;
+    }
+
+    const followersCount = await getFollowersCount(userId);
+    const followingCount = await getFollowingCount(userId);
+
+    // Transform to UserProfile format
+    const profile: UserProfile = {
+      id: data.id,
+      name: data.name || 'Anonymous',
+      email: data.email || '',
+      avatar: data.avatar || '',
+      role: data.role || 'user',
+      bio: data.bio || '',
+      location: data.location || '',
+      company: data.company || '',
+      website: data.website || '',
+      joinedOn: data.join_date || data.created_at || new Date().toISOString(),
+      skills: data.skills || [], // Provide default empty array
+      followersCount,
+      followingCount,
+      socialLinks: {
+        // Add default social links or extract them from data if available
       }
-      
-      if (!authUser.user) {
-        return null;
-      }
-      
-      return {
-        id: authUser.user.id,
-        name: authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'User',
-        email: authUser.user.email || '',
-        bio: authUser.user.user_metadata?.bio || '',
-        avatar: authUser.user.user_metadata?.avatar_url || '',
-        role: authUser.user.user_metadata?.role || 'member',
-        joinedOn: formatDate(authUser.user.created_at),
-        website: authUser.user.user_metadata?.website || '',
-        location: authUser.user.user_metadata?.location || '',
-        skills: authUser.user.user_metadata?.skills || [],
-        interests: authUser.user.user_metadata?.interests || [],
-        followersCount: 0,
-        followingCount: 0,
-        isFollowing: false
-      };
-    }
-
-    // Get followers count
-    const { count: followersCount, error: followersError } = await supabase
-      .from('user_followers')
-      .select('*', { count: 'exact' })
-      .eq('following_id', userId);
-
-    if (followersError) {
-      console.error("Error fetching followers count:", followersError);
-    }
-
-    // Get following count
-    const { count: followingCount, error: followingError } = await supabase
-      .from('user_followers')
-      .select('*', { count: 'exact' })
-      .eq('follower_id', userId);
-
-    if (followingError) {
-      console.error("Error fetching following count:", followingError);
-    }
-
-    // Check if current user is following this profile
-    let isFollowing = false;
-    const currentUser = (await supabase.auth.getUser()).data.user;
-    
-    if (currentUser) {
-      const { data: followData, error: followError } = await supabase
-        .from('user_followers')
-        .select('id')
-        .eq('follower_id', currentUser.id)
-        .eq('following_id', userId)
-        .single();
-        
-      if (!followError && followData) {
-        isFollowing = true;
-      }
-    }
-
-    return {
-      id: userData.id,
-      name: userData.name || 'User',
-      email: '', // Email is not stored in profiles table for security reasons
-      bio: userData.bio || '',
-      avatar: userData.avatar || '',
-      role: userData.role || 'member',
-      joinedOn: formatDate(userData.created_at),
-      website: userData.website || '',
-      location: userData.location || '',
-      skills: userData.skills || [],
-      interests: [],
-      followersCount: followersCount || 0,
-      followingCount: followingCount || 0,
-      isFollowing
     };
+
+    return profile;
   } catch (error) {
-    console.error("Error in getUserProfile:", error);
-    throw error;
+    console.error('Error in getUserProfile:', error);
+    return null;
   }
 };
 
@@ -111,68 +54,56 @@ export const getUserPosts = async (userId: string): Promise<Post[]> => {
     const { data, error } = await supabase
       .from('posts')
       .select(`
-        *,
-        author:user_id (
-          id,
-          name,
-          avatar,
-          role
-        )
+        id,
+        title,
+        content,
+        created_at,
+        updated_at,
+        upvotes,
+        downvotes,
+        author:user_id(id, name, avatar, role)
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error("Error fetching user posts:", error);
-      throw new Error(error.message);
-    }
-
-    // Mock posts if none found (for development)
-    if (!data || data.length === 0) {
+      console.error('Error fetching user posts:', error);
       return [];
     }
 
-    return data.map(post => {
-      // Handle the case where author might be null or an error
-      let author: User;
+    // Transform and add computed properties
+    const posts = (data || []).map(post => {
+      const createdAt = post.created_at;
+      const timeAgo = formatTimeAgo(new Date(createdAt));
       
-      if (!post.author || typeof post.author === 'object' && 'code' in post.author) {
-        author = {
-          id: userId,
-          name: 'Unknown',
-          avatar: '',
-          role: 'member'
-        };
-      } else {
-        author = {
-          id: post.author.id || '',
-          name: post.author.name || 'Unknown',
-          avatar: post.author.avatar || '',
-          role: post.author.role || 'member'
-        };
-      }
-
       return {
         id: post.id,
-        title: post.title || '',
-        content: post.content,
-        category: 'General',
-        author,
-        createdAt: post.created_at,
+        title: post.title || 'Untitled Post',
+        content: post.content || '',
+        createdAt,
         updatedAt: post.updated_at,
-        timeAgo: formatTimeAgo(post.created_at),
+        timeAgo,
         upvotes: post.upvotes || 0,
         downvotes: post.downvotes || 0,
-        commentCount: 0,
+        commentCount: 0, // Would need another query to get this
+        category: 'General', // Default category
         comments: [],
+        author: {
+          id: safeGetProperty(post.author, 'id', ''),
+          name: safeGetProperty(post.author, 'name', 'Unknown User'),
+          avatar: safeGetProperty(post.author, 'avatar', ''),
+          role: safeGetProperty(post.author, 'role', 'user')
+        },
         isUpvoted: false,
         isDownvoted: false,
         isBookmarked: false
       };
     });
+
+    return posts;
   } catch (error) {
-    console.error("Error in getUserPosts:", error);
-    throw error;
+    console.error('Error in getUserPosts:', error);
+    return [];
   }
 };
 
@@ -181,47 +112,34 @@ export const getFollowers = async (userId: string): Promise<User[]> => {
     const { data, error } = await supabase
       .from('user_followers')
       .select(`
-        *,
-        follower:follower_id (
-          id,
-          name,
-          avatar,
-          role,
-          bio
-        )
+        follower:follower_id(id, name, bio, avatar, role)
       `)
       .eq('following_id', userId);
 
     if (error) {
-      console.error("Error fetching followers:", error);
-      throw new Error(error.message);
+      console.error('Error fetching followers:', error);
+      return [];
     }
 
-    return data.map(item => {
-      // Handle the case where follower might be null or an error
-      if (!item.follower || typeof item.follower === 'object' && 'code' in item.follower) {
+    // Transform and handle null follower
+    const followers = (data || [])
+      .map(item => {
+        if (!item.follower) return null;
+        
         return {
-          id: item.follower_id,
-          name: 'Unknown User',
-          bio: '',
-          avatar: '',
-          role: 'member',
-          isFollowing: false
+          id: safeGetProperty(item.follower, 'id', ''),
+          name: safeGetProperty(item.follower, 'name', 'Unknown User'),
+          bio: safeGetProperty(item.follower, 'bio', ''),
+          avatar: safeGetProperty(item.follower, 'avatar', ''),
+          role: safeGetProperty(item.follower, 'role', 'user')
         };
-      }
+      })
+      .filter(Boolean) as User[];
 
-      return {
-        id: item.follower.id,
-        name: item.follower.name || 'Unknown User',
-        bio: item.follower.bio || '',
-        avatar: item.follower.avatar || '',
-        role: item.follower.role || 'member',
-        isFollowing: false // Will be set later if needed
-      };
-    });
+    return followers;
   } catch (error) {
-    console.error("Error in getFollowers:", error);
-    throw error;
+    console.error('Error in getFollowers:', error);
+    return [];
   }
 };
 
@@ -230,47 +148,34 @@ export const getFollowing = async (userId: string): Promise<User[]> => {
     const { data, error } = await supabase
       .from('user_followers')
       .select(`
-        *,
-        following:following_id (
-          id,
-          name,
-          avatar,
-          role,
-          bio
-        )
+        following:following_id(id, name, bio, avatar, role)
       `)
       .eq('follower_id', userId);
 
     if (error) {
-      console.error("Error fetching following:", error);
-      throw new Error(error.message);
+      console.error('Error fetching following:', error);
+      return [];
     }
 
-    return data.map(item => {
-      // Handle the case where following might be null or an error
-      if (!item.following || typeof item.following === 'object' && 'code' in item.following) {
+    // Transform and handle null following
+    const following = (data || [])
+      .map(item => {
+        if (!item.following) return null;
+        
         return {
-          id: item.following_id,
-          name: 'Unknown User',
-          bio: '',
-          avatar: '',
-          role: 'member',
-          isFollowing: true
+          id: safeGetProperty(item.following, 'id', ''),
+          name: safeGetProperty(item.following, 'name', 'Unknown User'),
+          bio: safeGetProperty(item.following, 'bio', ''),
+          avatar: safeGetProperty(item.following, 'avatar', ''),
+          role: safeGetProperty(item.following, 'role', 'user')
         };
-      }
+      })
+      .filter(Boolean) as User[];
 
-      return {
-        id: item.following.id,
-        name: item.following.name || 'Unknown User',
-        bio: item.following.bio || '',
-        avatar: item.following.avatar || '',
-        role: item.following.role || 'member',
-        isFollowing: true
-      };
-    });
+    return following;
   } catch (error) {
-    console.error("Error in getFollowing:", error);
-    throw error;
+    console.error('Error in getFollowing:', error);
+    return [];
   }
 };
 
@@ -330,6 +235,38 @@ const formatDate = (dateString: string): string => {
     month: 'long',
     day: 'numeric',
   });
+};
+
+const safeGetProperty = (obj: any, key: string, defaultValue: any): any => {
+  return obj && obj[key] !== undefined ? obj[key] : defaultValue;
+};
+
+const getFollowersCount = async (userId: string): Promise<number> => {
+  const { count, error } = await supabase
+    .from('user_followers')
+    .select('*', { count: 'exact' })
+    .eq('following_id', userId);
+
+  if (error) {
+    console.error("Error fetching followers count:", error);
+    return 0;
+  }
+
+  return count || 0;
+};
+
+const getFollowingCount = async (userId: string): Promise<number> => {
+  const { count, error } = await supabase
+    .from('user_followers')
+    .select('*', { count: 'exact' })
+    .eq('follower_id', userId);
+
+  if (error) {
+    console.error("Error fetching following count:", error);
+    return 0;
+  }
+
+  return count || 0;
 };
 
 export const userService = {

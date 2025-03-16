@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { format, isAfter, isBefore } from 'date-fns';
-import { User } from '@/types/api';
+import { format, isAfter, isBefore, parseISO } from 'date-fns';
+import { User, Event } from '@/types/api';
 import { Shell } from '@/components/ui/shell';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MapPin, Calendar, Clock, Users, ArrowLeft, Edit, Trash2, AlertCircle } from 'lucide-react';
+import { MapPin, Calendar, Clock, Users, ArrowLeft, Edit, Trash2, AlertCircle, Globe, Share2, AlertTriangle } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
@@ -23,6 +24,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Helmet } from 'react-helmet-async';
+import { Separator } from '@/components/ui/separator';
+import { PageTitle } from '@/components/ui/page-title';
 import eventService from '@/services/eventService';
 import { userService } from '@/services/userService';
 
@@ -130,10 +133,10 @@ const EventDetailPage: React.FC = () => {
     }
   };
 
-  const getEventStatus = (event: EventWithDetails): string => {
+  const getEventStatus = (eventData: Event): string => {
     const now = new Date();
-    const startDate = parseISO(`${event.startDate}T${event.startTime || '00:00'}`);
-    const endDate = parseISO(`${event.endDate}T${event.endTime || '23:59'}`);
+    const startDate = parseISO(`${eventData.startDate}T${eventData.startTime || '00:00'}`);
+    const endDate = parseISO(`${eventData.endDate}T${eventData.endTime || '23:59'}`);
 
     if (isAfter(now, endDate)) {
       return 'completed';

@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Shell } from '@/components/ui/shell';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,10 +22,23 @@ import {
 } from '@/components/ui/alert-dialog';
 import { formatTimeAgo } from '@/lib/utils';
 import { Post, Comment } from '@/types/api';
-import { ThumbsUp, ThumbsDown, MessageSquare, Bookmark, Share2, MoreVertical, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageSquare, Bookmark, Share2, MoreHorizontal, Edit, Trash2, ArrowLeft, Eye, Tag } from 'lucide-react';
 import PostDetail from '@/components/post/PostDetail';
 import RelatedPosts from '@/components/post/RelatedPosts';
 import CommentSection from '@/components/CommentSection';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
 import commentService from '@/services/commentService';
 import postService from '@/services/postService';
 import { userService } from '@/services/userService';
@@ -153,7 +167,7 @@ const PostDetailPage = () => {
 
   const CommentComponent: React.FC<CommentProps> = ({ comment, replies, onReply }) => {
     const [isReplying, setIsReplying] = useState(false);
-    const timeAgo = formatTimeAgo(new Date(comment.createdAt));
+    const timeAgo = formatTimeAgo(comment.createdAt);
 
     return (
       <div className="mb-4">
@@ -256,7 +270,7 @@ const PostDetailPage = () => {
       <CardHeader>
         <CardTitle>{post.title}</CardTitle>
         <CardDescription>
-          By {post.author.name} - {formatTimeAgo(new Date(post.createdAt))}
+          By {post.author.name} - {formatTimeAgo(post.createdAt)}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -279,11 +293,11 @@ const PostDetailPage = () => {
               <MessageSquare className="mr-2 h-4 w-4" /> Comment
             </Button>
             <Button variant="ghost">
-              <Share2Icon className="mr-2 h-4 w-4" /> Share
+              <Share2 className="mr-2 h-4 w-4" /> Share
             </Button>
           </div>
           <Button variant="ghost">
-            <BookmarkIcon className="mr-2 h-4 w-4" /> Bookmark
+            <Bookmark className="mr-2 h-4 w-4" /> Bookmark
           </Button>
         </div>
         <Separator />
