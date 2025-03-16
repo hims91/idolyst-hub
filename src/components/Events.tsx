@@ -206,13 +206,12 @@ const Events: React.FC<EventsProps> = ({
   
   const [filter, setFilter] = useState<EventFilter>({
     page: 1,
-    limit: 9,
     status: 'upcoming'
   });
 
   const { data, isLoading: eventsLoading, refetch } = useQuery({
     queryKey: ['events', filter],
-    queryFn: () => eventService.getEvents(filter),
+    queryFn: () => eventService.getEvents(filter.page, 10, filter),
     initialData: {
       items: eventData,
       total: totalEvents,
@@ -238,7 +237,6 @@ const Events: React.FC<EventsProps> = ({
       // Reset filter
       newFilter = {
         page: 1,
-        limit: 9,
         status: 'upcoming'
       };
     }

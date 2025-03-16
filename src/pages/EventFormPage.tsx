@@ -1,296 +1,243 @@
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/components/ui/use-toast';
-import { useRequireAuth } from '@/hooks/use-auth-route';
-import { z } from 'zod';
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import Header from '@/components/layout/Header';
-import PageTransition from '@/components/layout/PageTransition';
+import * as z from 'zod';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { format } from 'date-fns';
+import { Shell } from '@/components/ui/shell';
+import { PageTitle } from '@/components/ui/page-title';
 import { Button } from '@/components/ui/button';
-import { 
+import {
   Form,
   FormControl,
   FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
+  FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar } from '@/components/ui/calendar';
-import { 
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Spinner } from '@/components/ui/spinner';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
-import { Calendar as CalendarIcon, ChevronLeft } from 'lucide-react';
-import eventService from '@/services/eventService';
+import { ChevronLeft, Calendar } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import { EventFormData } from '@/types/api';
+import eventService from '@/services/eventService';
+import { notificationService } from '@/services/notificationService';
+import { Helmet } from 'react-helmet';
 
-// Form validation schema
-const eventFormSchema = z.object({
-  title: z.string().min(5, { message: 'Title must be at least 5 characters' }).max(100),
-  description: z.string().min(10, { message: 'Description must be at least 10 characters' }),
+const formSchema = z.object({
+  title: z.string().min(5, {
+    message: 'Title must be at least 5 characters.',
+  }),
+  description: z.string().min(20, {
+    message: 'Description must be at least 20 characters.',
+  }),
   location: z.string().optional(),
   isVirtual: z.boolean().default(false),
-  startDate: z.date({
-    required_error: "Start date is required",
+  startDate: z.string().min(1, {
+    message: 'Start date is required.',
   }),
-  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-    message: "Start time must be in 24-hour format (HH:MM)",
+  startTime: z.string().min(1, {
+    message: 'Start time is required.',
   }),
-  endDate: z.date({
-    required_error: "End date is required",
+  endDate: z.string().min(1, {
+    message: 'End date is required.',
   }),
-  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, {
-    message: "End time must be in 24-hour format (HH:MM)",
+  endTime: z.string().min(1, {
+    message: 'End time is required.',
   }),
-  category: z.string().min(1, { message: 'Category is required' }),
-  maxAttendees: z.union([
-    z.number().int().positive(),
-    z.string().transform((val) => {
-      const parsed = parseInt(val);
-      return isNaN(parsed) ? undefined : parsed;
-    }),
-    z.undefined()
-  ]).optional(),
+  category: z.string().min(1, {
+    message: 'Category is required.',
+  }),
+  maxAttendees: z.string().optional(),
   imageUrl: z.string().optional(),
-}).refine(data => {
-  const start = new Date(
-    data.startDate.getFullYear(),
-    data.startDate.getMonth(),
-    data.startDate.getDate(),
-    ...data.startTime.split(':').map(Number)
-  );
-  
-  const end = new Date(
-    data.endDate.getFullYear(),
-    data.endDate.getMonth(),
-    data.endDate.getDate(),
-    ...data.endTime.split(':').map(Number)
-  );
-  
-  return end > start;
-}, {
-  message: "End date/time must be after start date/time",
-  path: ["endDate"],
 });
 
-type EventFormValues = z.infer<typeof eventFormSchema>;
-
-const EventFormPage = () => {
+const EventFormPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const isEditMode = !!id;
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useRequireAuth();
-  
-  // Get event data if in edit mode
-  const { data: event, isLoading: isEventLoading } = useQuery({
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const isEditMode = !!id;
+
+  // Redirect if not logged in
+  if (!user) {
+    navigate('/login');
+    toast({
+      title: 'Authentication required',
+      description: 'Please sign in to create or edit events',
+      variant: 'destructive',
+    });
+  }
+
+  const {
+    data: event,
+    isLoading: eventLoading,
+  } = useQuery({
     queryKey: ['event', id],
-    queryFn: () => eventService.getEventById(id as string),
+    queryFn: () => eventService.getEvent(id || ''),
     enabled: isEditMode,
   });
-  
-  // Get categories for dropdown
-  const { data: categories = [] } = useQuery({
-    queryKey: ['event-categories'],
-    queryFn: eventService.getEventCategories,
+
+  const {
+    data: categories,
+    isLoading: categoriesLoading,
+  } = useQuery({
+    queryKey: ['eventCategories'],
+    queryFn: () => eventService.getEventCategories(),
+    initialData: [],
   });
-  
-  // Default form values
-  const getDefaultValues = (): Partial<EventFormValues> => {
-    if (isEditMode && event) {
-      const startDate = new Date(event.startDate);
-      const endDate = new Date(event.endDate);
-      
-      return {
-        title: event.title,
-        description: event.description,
-        location: event.location,
-        isVirtual: event.isVirtual,
-        startDate: startDate,
-        startTime: format(startDate, 'HH:mm'),
-        endDate: endDate,
-        endTime: format(endDate, 'HH:mm'),
-        category: event.category,
-        maxAttendees: event.maxAttendees || undefined,
-        imageUrl: event.imageUrl,
-      };
-    }
-    
-    // Default values for new event
-    const now = new Date();
-    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
-    
-    return {
+
+  const form = useForm<EventFormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
       title: '',
       description: '',
       location: '',
       isVirtual: false,
-      startDate: now,
-      startTime: format(now, 'HH:mm'),
-      endDate: oneHourLater,
-      endTime: format(oneHourLater, 'HH:mm'),
-      category: '',
-      maxAttendees: undefined,
+      startDate: format(new Date(), 'yyyy-MM-dd'),
+      startTime: '18:00',
+      endDate: format(new Date(), 'yyyy-MM-dd'),
+      endTime: '21:00',
+      category: 'General',
+      maxAttendees: '',
       imageUrl: '',
-    };
-  };
-  
-  // Initialize form
-  const form = useForm<EventFormValues>({
-    resolver: zodResolver(eventFormSchema),
-    defaultValues: getDefaultValues(),
+    },
   });
-  
-  // Update form when event data is loaded
-  useEffect(() => {
-    if (isEditMode && event) {
+
+  // Update form with event data when editing
+  React.useEffect(() => {
+    if (event && isEditMode) {
       const startDate = new Date(event.startDate);
       const endDate = new Date(event.endDate);
       
       form.reset({
         title: event.title,
         description: event.description,
-        location: event.location,
+        location: event.location || '',
         isVirtual: event.isVirtual,
-        startDate: startDate,
-        startTime: format(startDate, 'HH:mm'),
-        endDate: endDate,
-        endTime: format(endDate, 'HH:mm'),
-        category: event.category,
-        maxAttendees: event.maxAttendees || undefined,
-        imageUrl: event.imageUrl,
+        startDate: format(startDate, 'yyyy-MM-dd'),
+        startTime: event.startTime || format(startDate, 'HH:mm'),
+        endDate: format(endDate, 'yyyy-MM-dd'),
+        endTime: event.endTime || format(endDate, 'HH:mm'),
+        category: event.category || 'General',
+        maxAttendees: event.maxAttendees ? String(event.maxAttendees) : '',
+        imageUrl: event.imageUrl || '',
       });
     }
-  }, [isEditMode, event, form]);
-  
-  // Create event mutation
+  }, [event, isEditMode, form]);
+
   const createMutation = useMutation({
     mutationFn: (data: EventFormData) => eventService.createEvent(data),
-    onSuccess: (data) => {
+    onSuccess: (eventId) => {
       toast({
-        title: "Event created",
-        description: "Your event has been created successfully",
+        title: 'Event created',
+        description: 'Your event has been successfully created',
       });
-      navigate(`/events/${data?.id}`);
+      
+      // Send notification to followers
+      if (user) {
+        notificationService.notifyFollowers(
+          user.id,
+          'New Event Created',
+          `${user.name} created a new event: ${form.getValues().title}`,
+          'event',
+          `/events/${eventId}`
+        );
+      }
+      
+      navigate(`/events/${eventId}`);
     },
     onError: (error) => {
       toast({
-        title: "Error creating event",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
+        title: 'Failed to create event',
+        description: error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
       });
-    }
+    },
   });
-  
-  // Update event mutation
+
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string, data: Partial<EventFormData> }) => 
-      eventService.updateEvent(id, data),
+    mutationFn: (data: EventFormData) => {
+      if (!id) throw new Error('Event ID is missing');
+      return eventService.updateEvent(id, data);
+    },
     onSuccess: () => {
       toast({
-        title: "Event updated",
-        description: "Your event has been updated successfully",
+        title: 'Event updated',
+        description: 'Your event has been successfully updated',
       });
+      
       navigate(`/events/${id}`);
     },
     onError: (error) => {
       toast({
-        title: "Error updating event",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
-        variant: "destructive",
+        title: 'Failed to update event',
+        description: error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
       });
-    }
+    },
   });
-  
-  const isSubmitting = createMutation.isPending || updateMutation.isPending;
-  
-  // Form submission handler
-  const onSubmit = (values: EventFormValues) => {
-    // Combine date and time
-    const startDateTime = combineDateAndTime(values.startDate, values.startTime);
-    const endDateTime = combineDateAndTime(values.endDate, values.endTime);
-    
-    const eventData: EventFormData = {
-      title: values.title,
-      description: values.description,
-      location: values.isVirtual ? 'Virtual Event' : (values.location || ''),
-      isVirtual: values.isVirtual,
-      startDate: startDateTime.toISOString(),
-      endDate: endDateTime.toISOString(),
-      category: values.category,
-      maxAttendees: values.maxAttendees,
-      imageUrl: values.imageUrl,
-    };
-    
+
+  const onSubmit = (data: EventFormData) => {
     if (isEditMode) {
-      updateMutation.mutate({ id: id as string, data: eventData });
+      updateMutation.mutate(data);
     } else {
-      createMutation.mutate(eventData);
+      createMutation.mutate(data);
     }
   };
-  
-  // Helper to combine date and time
-  const combineDateAndTime = (date: Date, timeString: string): Date => {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    const result = new Date(date);
-    result.setHours(hours, minutes, 0, 0);
-    return result;
-  };
-  
-  // Loading state
-  if (isEditMode && isEventLoading) {
+
+  if (eventLoading && isEditMode) {
     return (
-      <PageTransition>
-        <div className="min-h-screen flex flex-col">
-          <Header title={isEditMode ? "Edit Event" : "Create Event"} />
-          <div className="flex-1 container max-w-3xl py-12 flex justify-center items-center">
-            <Spinner size="lg" />
-          </div>
+      <Shell>
+        <div className="flex justify-center items-center py-20">
+          <Spinner size="lg" />
         </div>
-      </PageTransition>
+      </Shell>
     );
   }
-  
-  // Check if user is organizer when editing
-  if (isEditMode && event && user?.id !== event.organizer.id) {
-    toast({
-      title: "Permission denied",
-      description: "You don't have permission to edit this event",
-      variant: "destructive",
-    });
-    navigate(`/events/${id}`);
-    return null;
-  }
-  
+
   return (
-    <PageTransition>
-      <div className="min-h-screen flex flex-col">
-        <Header title={isEditMode ? "Edit Event" : "Create Event"} />
-        
-        <main className="flex-1 container max-w-3xl py-6">
-          <Button 
-            variant="outline" 
-            className="mb-6"
-            onClick={() => navigate(isEditMode ? `/events/${id}` : '/events')}
-          >
-            <ChevronLeft className="h-4 w-4 mr-2" />
-            {isEditMode ? 'Back to Event' : 'Back to Events'}
-          </Button>
-          
+    <>
+      <Helmet>
+        <title>{isEditMode ? 'Edit Event' : 'Create Event'} | Events</title>
+      </Helmet>
+
+      <Shell>
+        <Button
+          variant="ghost"
+          className="mb-6"
+          onClick={() => navigate(-1)}
+        >
+          <ChevronLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+
+        <PageTitle
+          heading={isEditMode ? 'Edit Event' : 'Create a New Event'}
+          text={
+            isEditMode
+              ? 'Update your event details'
+              : 'Fill out the form below to create a new event'
+          }
+        />
+
+        <div className="max-w-2xl mx-auto">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               <FormField
                 control={form.control}
                 name="title"
@@ -300,14 +247,11 @@ const EventFormPage = () => {
                     <FormControl>
                       <Input placeholder="Enter event title" {...field} />
                     </FormControl>
-                    <FormDescription>
-                      Choose a clear, descriptive title for your event
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="description"
@@ -315,61 +259,121 @@ const EventFormPage = () => {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        placeholder="Describe your event" 
-                        className="min-h-32"
-                        {...field} 
+                      <Textarea
+                        placeholder="Describe your event"
+                        rows={5}
+                        {...field}
                       />
                     </FormControl>
-                    <FormDescription>
-                      Provide details about what attendees can expect
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="startDate"
+                  name="category"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Start Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
+                    <FormItem>
+                      <FormLabel>Category</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="General">General</SelectItem>
+                          {categories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
+                <FormField
+                  control={form.control}
+                  name="maxAttendees"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Maximum Attendees</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="Leave empty for unlimited"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Optional: limit the number of attendees
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="isVirtual"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Virtual Event</FormLabel>
+                      <FormDescription>
+                        Is this event happening online?
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {!form.watch('isVirtual') && (
+                <FormField
+                  control={form.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Event location" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start Date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="startTime"
@@ -383,47 +387,23 @@ const EventFormPage = () => {
                     </FormItem>
                   )}
                 />
-                
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="endDate"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                    <FormItem>
                       <FormLabel>End Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) => date < form.getValues('startDate')}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="endTime"
@@ -438,100 +418,7 @@ const EventFormPage = () => {
                   )}
                 />
               </div>
-              
-              <FormField
-                control={form.control}
-                name="isVirtual"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Virtual Event</FormLabel>
-                      <FormDescription>
-                        Toggle if this is an online event
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              
-              {!form.watch('isVirtual') && (
-                <FormField
-                  control={form.control}
-                  name="location"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Location</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter event location" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Where will the event take place?
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-              
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="e.g. Conference, Workshop, Networking" 
-                        list="categories"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <datalist id="categories">
-                      {categories.map((category, index) => (
-                        <option key={index} value={category} />
-                      ))}
-                    </datalist>
-                    <FormDescription>
-                      Choose an existing category or create a new one
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="maxAttendees"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Maximum Attendees</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="Leave empty for unlimited" 
-                        min={1}
-                        {...field}
-                        value={field.value === undefined ? '' : field.value}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          field.onChange(value === '' ? undefined : parseInt(value));
-                        }}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Set a limit for the number of attendees, or leave empty for no limit
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
+
               <FormField
                 control={form.control}
                 name="imageUrl"
@@ -539,35 +426,46 @@ const EventFormPage = () => {
                   <FormItem>
                     <FormLabel>Image URL</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter image URL for event banner" 
-                        {...field} 
-                        value={field.value || ''}
+                      <Input
+                        placeholder="URL to event image or poster"
+                        {...field}
                       />
                     </FormControl>
                     <FormDescription>
-                      Provide a URL for an image to display on your event
+                      Optional: add an image for your event
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              
-              <div className="flex justify-end pt-4">
-                <Button 
-                  type="submit" 
-                  disabled={isSubmitting}
-                  className="min-w-32"
+
+              <div className="flex justify-end space-x-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(-1)}
                 >
-                  {isSubmitting && <Spinner size="sm" className="mr-2" />}
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    createMutation.isPending ||
+                    updateMutation.isPending ||
+                    loading
+                  }
+                >
+                  {(createMutation.isPending ||
+                    updateMutation.isPending ||
+                    loading) && <Spinner className="mr-2" size="sm" />}
                   {isEditMode ? 'Update Event' : 'Create Event'}
                 </Button>
               </div>
             </form>
           </Form>
-        </main>
-      </div>
-    </PageTransition>
+        </div>
+      </Shell>
+    </>
   );
 };
 

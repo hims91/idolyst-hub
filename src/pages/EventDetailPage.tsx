@@ -1,132 +1,146 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/components/ui/use-toast';
-import Header from '@/components/layout/Header';
-import PageTransition from '@/components/layout/PageTransition';
-import { 
-  Card, 
+import { format } from 'date-fns';
+import { Shell } from '@/components/ui/shell';
+import { PageTitle } from '@/components/ui/page-title';
+import {
+  Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle 
+  CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/ui/spinner';
-import { 
-  Calendar, 
-  MapPin, 
-  Users, 
-  Video, 
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
+import {
+  Calendar,
   Clock,
+  MapPin,
+  Users,
+  Video,
+  Share2,
   Edit,
-  Trash,
-  User,
+  Trash2,
   ChevronLeft,
-  Globe
+  ExternalLink,
 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { EventWithDetails } from '@/types/api';
 import eventService from '@/services/eventService';
-import { format } from 'date-fns';
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { notificationService } from '@/services/notificationService';
+import { Helmet } from 'react-helmet';
 
-const EventDetailPage = () => {
+const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
-  
-  const { data: event, isLoading, error } = useQuery({
-    queryKey: ['event', id],
-    queryFn: () => eventService.getEventById(id as string),
-    enabled: !!id,
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+
+  const eventId = id || '';
+
+  const {
+    data: event,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ['event', eventId],
+    queryFn: () => eventService.getEvent(eventId),
+    enabled: !!eventId,
   });
-  
-  const { data: attendees, isLoading: isAttendeesLoading } = useQuery({
-    queryKey: ['event-attendees', id],
-    queryFn: () => eventService.getEventAttendees(id as string),
-    enabled: !!id,
+
+  const {
+    data: attendees,
+    isLoading: attendeesLoading,
+  } = useQuery({
+    queryKey: ['eventAttendees', eventId],
+    queryFn: () => [], // Placeholder for eventService.getEventAttendees(eventId)
+    enabled: !!eventId && !!event,
   });
-  
+
   const { mutate: registerMutation, isPending: isRegistering } = useMutation({
-    mutationFn: () => eventService.registerForEvent(id as string),
+    mutationFn: () => eventService.registerForEvent(eventId),
     onSuccess: () => {
       toast({
-        title: "Successfully registered!",
-        description: `You have been registered for ${event?.title}`,
+        title: 'Successfully registered!',
+        description: `You have been registered for this event`,
       });
-      queryClient.invalidateQueries({ queryKey: ['event', id] });
-      queryClient.invalidateQueries({ queryKey: ['event-attendees', id] });
+      queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+      
+      // Send notification to event organizer
+      if (event?.organizer && user) {
+        notificationService.createNotification({
+          userId: event.organizer.id,
+          title: 'New Event Registration',
+          message: `${user.name} has registered for your event: ${event.title}`,
+          type: 'event',
+          linkTo: `/events/${eventId}`,
+          senderId: user.id
+        });
+      }
     },
     onError: (error) => {
       toast({
-        title: "Registration failed",
-        description: error instanceof Error ? error.message : "Could not register for the event",
-        variant: "destructive",
+        title: 'Registration failed',
+        description: error instanceof Error ? error.message : 'Could not register for the event',
+        variant: 'destructive',
       });
-    }
+    },
   });
 
   const { mutate: cancelRegistrationMutation, isPending: isCancelling } = useMutation({
-    mutationFn: () => eventService.cancelEventRegistration(id as string),
+    mutationFn: () => eventService.cancelEventRegistration(eventId),
     onSuccess: () => {
       toast({
-        title: "Registration cancelled",
-        description: `You have cancelled your registration for ${event?.title}`,
+        title: 'Registration cancelled',
+        description: `You have cancelled your registration`,
       });
-      queryClient.invalidateQueries({ queryKey: ['event', id] });
-      queryClient.invalidateQueries({ queryKey: ['event-attendees', id] });
+      queryClient.invalidateQueries({ queryKey: ['event', eventId] });
     },
     onError: (error) => {
       toast({
-        title: "Cancellation failed",
-        description: error instanceof Error ? error.message : "Could not cancel registration",
-        variant: "destructive",
+        title: 'Cancellation failed',
+        description: error instanceof Error ? error.message : 'Could not cancel registration',
+        variant: 'destructive',
       });
-    }
+    },
   });
-  
+
   const { mutate: deleteMutation, isPending: isDeleting } = useMutation({
-    mutationFn: () => eventService.deleteEvent(id as string),
+    mutationFn: () => eventService.deleteEvent(eventId),
     onSuccess: () => {
       toast({
-        title: "Event deleted",
-        description: "The event has been successfully deleted",
+        title: 'Event deleted',
+        description: 'The event has been successfully deleted',
       });
       navigate('/events');
     },
     onError: (error) => {
       toast({
-        title: "Deletion failed",
-        description: error instanceof Error ? error.message : "Could not delete the event",
-        variant: "destructive",
+        title: 'Delete failed',
+        description: error instanceof Error ? error.message : 'Could not delete the event',
+        variant: 'destructive',
       });
-    }
+    },
   });
-  
+
   const handleRegisterClick = () => {
     if (!user) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to register for events",
-        variant: "destructive",
+        title: 'Authentication required',
+        description: 'Please sign in to register for events',
+        variant: 'destructive',
       });
-      return navigate('/login');
+      navigate('/login');
+      return;
     }
 
     if (event?.isRegistered) {
@@ -135,295 +149,299 @@ const EventDetailPage = () => {
       registerMutation();
     }
   };
-  
-  const handleEditEvent = () => {
-    navigate(`/events/edit/${id}`);
+
+  const handleShareClick = async () => {
+    try {
+      await navigator.share({
+        title: event?.title,
+        text: event?.description,
+        url: window.location.href,
+      });
+    } catch (error) {
+      // Fallback for browsers that don't support navigator.share
+      navigator.clipboard.writeText(window.location.href);
+      toast({
+        title: 'Link copied to clipboard',
+        description: 'You can now share this event with others',
+      });
+    }
   };
-  
-  const handleDeleteEvent = () => {
+
+  const handleEditClick = () => {
+    navigate(`/events/edit/${eventId}`);
+  };
+
+  const handleDeleteClick = () => {
+    setShowConfirmDelete(true);
+  };
+
+  const confirmDelete = () => {
     deleteMutation();
   };
-  
-  const isOrganizer = user && event?.organizer.id === user.id;
-  const isAtCapacity = event?.maxAttendees ? event.currentAttendees >= event.maxAttendees : false;
-  
+
+  const cancelDelete = () => {
+    setShowConfirmDelete(false);
+  };
+
+  const formatDateTime = (dateString: string) => {
+    return format(new Date(dateString), 'PPP p');
+  };
+
+  const isOrganizer = event?.organizer.id === user?.id;
+  const isPastEvent = event?.status === 'past';
+
   if (isLoading) {
     return (
-      <PageTransition>
-        <div className="min-h-screen flex flex-col">
-          <Header title="Event Details" />
-          <div className="flex-1 container max-w-4xl py-12 flex justify-center items-center">
-            <Spinner size="lg" />
-          </div>
+      <Shell>
+        <div className="flex justify-center items-center py-20">
+          <Spinner size="lg" />
         </div>
-      </PageTransition>
+      </Shell>
     );
   }
-  
+
   if (error || !event) {
     return (
-      <PageTransition>
-        <div className="min-h-screen flex flex-col">
-          <Header title="Event Not Found" />
-          <div className="flex-1 container max-w-4xl py-12">
-            <Card>
-              <CardHeader>
-                <CardTitle>Event Not Found</CardTitle>
-                <CardDescription>The event you're looking for doesn't exist or has been removed.</CardDescription>
-              </CardHeader>
-              <CardFooter>
-                <Button onClick={() => navigate('/events')}>
-                  <ChevronLeft className="h-4 w-4 mr-2" />
-                  Back to Events
-                </Button>
-              </CardFooter>
-            </Card>
-          </div>
-        </div>
-      </PageTransition>
-    );
-  }
-  
-  return (
-    <PageTransition>
-      <div className="min-h-screen flex flex-col">
-        <Header title={event.title} />
-        
-        <main className="flex-1 container max-w-4xl py-6">
-          <Button 
-            variant="outline" 
-            className="mb-6"
-            onClick={() => navigate('/events')}
-          >
-            <ChevronLeft className="h-4 w-4 mr-2" />
+      <Shell>
+        <div className="text-center py-20">
+          <h2 className="text-2xl font-bold mb-4">Event not found</h2>
+          <p className="text-muted-foreground mb-6">
+            The event you're looking for doesn't exist or has been removed.
+          </p>
+          <Button onClick={() => navigate('/events')}>
+            <ChevronLeft className="mr-2 h-4 w-4" />
             Back to Events
           </Button>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 space-y-6">
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <Badge className="mb-2">{event.status}</Badge>
-                      <CardTitle className="text-2xl">{event.title}</CardTitle>
-                      <CardDescription>
-                        Organized by {event.organizer.name}
-                      </CardDescription>
-                    </div>
-                    
-                    {isOrganizer && (
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" onClick={handleEditEvent}>
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
-                        
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm">
-                              <Trash className="h-4 w-4 mr-2" />
-                              Delete
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Event</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete this event? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={handleDeleteEvent}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                {isDeleting ? <Spinner size="sm" className="mr-2" /> : null}
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    )}
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="space-y-6">
-                  <div className="space-y-4">
-                    <div className="flex items-center">
-                      <Calendar className="h-5 w-5 mr-3 text-primary" />
-                      <div>
-                        <p className="font-medium">Date & Time</p>
-                        <p className="text-muted-foreground">
-                          {format(new Date(event.startDate), 'EEEE, MMMM d, yyyy')} 
-                          <span className="mx-1">•</span> 
-                          {format(new Date(event.startDate), 'h:mm a')} - 
-                          {format(new Date(event.endDate), 'h:mm a')}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      <MapPin className="h-5 w-5 mr-3 text-primary" />
-                      <div>
-                        <p className="font-medium">Location</p>
-                        <p className="text-muted-foreground">
-                          {event.isVirtual ? 'Virtual Event' : event.location || 'Location not specified'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center">
-                      {event.isVirtual ? (
-                        <Video className="h-5 w-5 mr-3 text-primary" />
-                      ) : (
-                        <Users className="h-5 w-5 mr-3 text-primary" />
-                      )}
-                      <div>
-                        <p className="font-medium">Event Type</p>
-                        <p className="text-muted-foreground">
-                          {event.isVirtual ? 'Virtual Event' : 'In-Person Event'}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    {event.maxAttendees && (
-                      <div className="flex items-center">
-                        <Users className="h-5 w-5 mr-3 text-primary" />
-                        <div>
-                          <p className="font-medium">Capacity</p>
-                          <p className="text-muted-foreground">
-                            {event.currentAttendees} / {event.maxAttendees} attendees
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="flex items-center">
-                      <Globe className="h-5 w-5 mr-3 text-primary" />
-                      <div>
-                        <p className="font-medium">Category</p>
-                        <p className="text-muted-foreground">
-                          {event.category}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
+        </div>
+      </Shell>
+    );
+  }
+
+  return (
+    <>
+      <Helmet>
+        <title>{event.title} | Events</title>
+      </Helmet>
+
+      <Shell>
+        <Button
+          variant="ghost"
+          className="mb-6"
+          onClick={() => navigate('/events')}
+        >
+          <ChevronLeft className="mr-2 h-4 w-4" />
+          Back to Events
+        </Button>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-lg font-medium mb-2">About this event</h3>
-                    <p className="whitespace-pre-line">{event.description}</p>
+                    <div className="flex items-center mb-2 space-x-2">
+                      <Badge variant={isPastEvent ? 'outline' : 'default'}>
+                        {event.status === 'upcoming'
+                          ? 'Upcoming'
+                          : event.status === 'ongoing'
+                          ? 'Happening Now'
+                          : 'Past Event'}
+                      </Badge>
+                      <Badge variant="secondary" className="capitalize">
+                        {event.category || 'General'}
+                      </Badge>
+                      {event.isVirtual && (
+                        <Badge variant="secondary">
+                          <Video className="h-3 w-3 mr-1" />
+                          Virtual
+                        </Badge>
+                      )}
+                    </div>
+                    <CardTitle className="text-2xl md:text-3xl">
+                      {event.title}
+                    </CardTitle>
                   </div>
-                </CardContent>
-                
-                <CardFooter>
+                  {!isPastEvent && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={handleShareClick}
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm">
+                      <Calendar className="h-4 w-4 mr-2 text-primary" />
+                      <span>
+                        {formatDateTime(event.startDate)}
+                        {event.startDate !== event.endDate &&
+                          ` - ${formatDateTime(event.endDate)}`}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <MapPin className="h-4 w-4 mr-2 text-primary" />
+                      <span>{event.location || 'Online'}</span>
+                    </div>
+                    <div className="flex items-center text-sm">
+                      <Users className="h-4 w-4 mr-2 text-primary" />
+                      <span>
+                        {event.currentAttendees} attending
+                        {event.maxAttendees && ` (Max: ${event.maxAttendees})`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 mr-4">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={event.organizer.avatar} />
+                        <AvatarFallback>
+                          {event.organizer.name
+                            .split(' ')
+                            .map((n) => n[0])
+                            .join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Organized by</p>
+                      <p className="text-sm">{event.organizer.name}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div>
+                  <h3 className="font-medium mb-2">Description</h3>
+                  <div className="text-sm whitespace-pre-line">
+                    {event.description}
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="flex flex-col sm:flex-row items-center gap-3">
+                {!isPastEvent && !isOrganizer && (
                   <Button
-                    className="w-full"
-                    variant={event.isRegistered ? "destructive" : "default"}
+                    className="w-full sm:w-auto"
+                    variant={event.isRegistered ? 'destructive' : 'default'}
                     onClick={handleRegisterClick}
-                    disabled={isRegistering || isCancelling || (!event.isRegistered && isAtCapacity)}
+                    disabled={
+                      isRegistering ||
+                      isCancelling ||
+                      (!!event.maxAttendees &&
+                        event.currentAttendees >= event.maxAttendees &&
+                        !event.isRegistered)
+                    }
                   >
                     {isRegistering || isCancelling ? (
                       <Spinner size="sm" className="mr-2" />
-                    ) : null}
-                    {event.isRegistered 
-                      ? 'Cancel Registration' 
-                      : isAtCapacity 
-                        ? 'Event at Capacity' 
-                        : 'Register for Event'}
+                    ) : event.isRegistered ? (
+                      'Cancel Registration'
+                    ) : (
+                      'Register'
+                    )}
                   </Button>
-                </CardFooter>
-              </Card>
-            </div>
-            
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Attendees</CardTitle>
-                  <CardDescription>
-                    {event.currentAttendees} {event.currentAttendees === 1 ? 'person' : 'people'} attending
-                  </CardDescription>
-                </CardHeader>
-                
-                <CardContent>
-                  {isAttendeesLoading ? (
-                    <div className="flex justify-center py-4">
-                      <Spinner size="md" />
-                    </div>
-                  ) : attendees && attendees.length > 0 ? (
-                    <div className="space-y-3">
-                      {attendees.slice(0, 10).map(attendee => (
-                        <div key={attendee.id} className="flex items-center space-x-3">
-                          <Avatar>
-                            {attendee.avatar ? (
-                              <AvatarImage src={attendee.avatar} alt={attendee.name} />
-                            ) : (
-                              <AvatarFallback>
-                                <User className="h-4 w-4" />
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{attendee.name}</p>
-                            {attendee.role && (
-                              <p className="text-sm text-muted-foreground">{attendee.role}</p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      
-                      {attendees.length > 10 && (
-                        <p className="text-center text-sm text-muted-foreground pt-2">
-                          +{attendees.length - 10} more attendees
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-center text-muted-foreground py-4">
-                      No attendees yet. Be the first to register!
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-              
-              {event.organizer && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Organizer</CardTitle>
-                  </CardHeader>
-                  
-                  <CardContent>
-                    <div className="flex items-center space-x-3">
-                      <Avatar>
-                        {event.organizer.avatar ? (
-                          <AvatarImage src={event.organizer.avatar} alt={event.organizer.name} />
-                        ) : (
-                          <AvatarFallback>
-                            <User className="h-4 w-4" />
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{event.organizer.name}</p>
-                        <Button 
-                          variant="link" 
-                          className="h-auto p-0 text-sm"
-                          onClick={() => navigate(`/profile/${event.organizer.id}`)}
+                )}
+
+                {isOrganizer && !isPastEvent && (
+                  <>
+                    <Button
+                      className="w-full sm:w-auto"
+                      variant="outline"
+                      onClick={handleEditClick}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Event
+                    </Button>
+                    {!showConfirmDelete ? (
+                      <Button
+                        className="w-full sm:w-auto"
+                        variant="destructive"
+                        onClick={handleDeleteClick}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Event
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          className="w-full sm:w-auto"
+                          variant="destructive"
+                          onClick={confirmDelete}
+                          disabled={isDeleting}
                         >
-                          View Profile
+                          {isDeleting ? <Spinner size="sm" /> : 'Confirm Delete'}
                         </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
+                        <Button
+                          className="w-full sm:w-auto"
+                          variant="outline"
+                          onClick={cancelDelete}
+                          disabled={isDeleting}
+                        >
+                          Cancel
+                        </Button>
+                      </>
+                    )}
+                  </>
+                )}
+              </CardFooter>
+            </Card>
           </div>
-        </main>
-      </div>
-    </PageTransition>
+
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Attendees</CardTitle>
+                <CardDescription>
+                  {event.currentAttendees} people attending
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {attendeesLoading ? (
+                  <div className="flex justify-center p-4">
+                    <Spinner />
+                  </div>
+                ) : attendees && attendees.length > 0 ? (
+                  <div className="space-y-4">
+                    {attendees.slice(0, 5).map((attendee) => (
+                      <div
+                        key={attendee.id}
+                        className="flex items-center space-x-3"
+                      >
+                        <Avatar>
+                          <AvatarImage src={attendee.avatar} />
+                          <AvatarFallback>
+                            {attendee.name?.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {attendee.name}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    {attendees.length > 5 && (
+                      <Button variant="outline" className="w-full" size="sm">
+                        View all attendees
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-2">
+                    Be the first to register!
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </Shell>
+    </>
   );
 };
 

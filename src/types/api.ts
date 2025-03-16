@@ -131,6 +131,8 @@ export interface Event {
   isVirtual: boolean;
   startDate: string;
   endDate: string;
+  startTime?: string;
+  endTime?: string;
   category?: string;
   imageUrl?: string;
   maxAttendees?: number;
@@ -140,6 +142,7 @@ export interface Event {
   createdAt: string;
   updatedAt: string;
   isRegistered?: boolean;
+  timeAgo?: string;
 }
 
 export interface EventWithDetails extends Event {
@@ -218,7 +221,7 @@ export interface Notification {
   sender?: User;
 }
 
-// Gamification
+// Gamification - moved to src/types/gamification.ts
 export interface UserLevel {
   level: number;
   title: string;

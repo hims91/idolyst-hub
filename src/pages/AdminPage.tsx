@@ -1,99 +1,104 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import Header from '@/components/layout/Header';
-import PageTransition from '@/components/layout/PageTransition';
-import { Tab, Tabs } from '@/components/ui/tabs';
-import { Card } from '@/components/ui/card';
-import { Spinner } from '@/components/ui/spinner';
+import { Shell } from '@/components/ui/shell';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PageTitle } from '@/components/ui/page-title';
 import AdminStats from '@/components/admin/AdminStats';
 import AdminUsers from '@/components/admin/AdminUsers';
 import AdminContent from '@/components/admin/AdminContent';
 import AdminSettings from '@/components/admin/AdminSettings';
-import { getAdminStats, getAdminUsers, getAdminContent } from '@/services/api/admin';
-import { useAuthSession } from '@/hooks/useAuthSession';
+import { useRequireAuth } from '@/hooks/use-auth-route';
+import { Spinner } from '@/components/ui/spinner';
+import { Helmet } from 'react-helmet';
+import adminService from '@/services/api/admin';
 
-const AdminPage = () => {
+const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const auth = useAuthSession();
-  const isAuthenticated = auth?.isValidSession;
-
-  const { data: statsData, isLoading: statsLoading } = useQuery({
-    queryKey: ['admin-stats'],
-    queryFn: getAdminStats,
-    enabled: isAuthenticated,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+  const auth = useRequireAuth();
+  
+  // Check if user is admin
+  const isAdmin = auth?.user?.role === 'admin';
+  
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['adminStats'],
+    queryFn: () => adminService.getAdminStats(),
+    enabled: isAdmin && activeTab === 'dashboard',
   });
-
-  const { data: usersData, isLoading: usersLoading } = useQuery({
-    queryKey: ['admin-users'],
-    queryFn: getAdminUsers,
-    enabled: isAuthenticated && activeTab === 'users',
+  
+  const { data: users, isLoading: usersLoading } = useQuery({
+    queryKey: ['adminUsers'],
+    queryFn: () => adminService.getAdminUsers(),
+    enabled: isAdmin && activeTab === 'users',
   });
-
-  const { data: contentData, isLoading: contentLoading } = useQuery({
-    queryKey: ['admin-content'],
-    queryFn: getAdminContent,
-    enabled: isAuthenticated && activeTab === 'content',
+  
+  const { data: content, isLoading: contentLoading } = useQuery({
+    queryKey: ['adminContent'],
+    queryFn: () => adminService.getAdminContent(),
+    enabled: isAdmin && activeTab === 'content',
   });
-
-  if (!isAuthenticated) {
+  
+  if (!auth?.user) {
     return (
-      <PageTransition>
-        <div className="min-h-screen">
-          <Header title="Admin Panel" />
-          <main className="container py-8">
-            <Card className="p-8 text-center">
-              <h2 className="text-2xl font-bold">Access Denied</h2>
-              <p className="mt-2">You don't have permission to access the admin area.</p>
-            </Card>
-          </main>
+      <Shell>
+        <div className="flex items-center justify-center py-20">
+          <Spinner size="lg" />
         </div>
-      </PageTransition>
+      </Shell>
     );
   }
-
-  const isLoading = 
-    (activeTab === 'dashboard' && statsLoading) || 
-    (activeTab === 'users' && usersLoading) || 
-    (activeTab === 'content' && contentLoading);
-
+  
+  if (!isAdmin) {
+    return (
+      <Shell>
+        <div className="text-center py-20">
+          <h2 className="text-2xl font-bold mb-4">Access Denied</h2>
+          <p className="text-muted-foreground">
+            You do not have permission to access the admin dashboard.
+          </p>
+        </div>
+      </Shell>
+    );
+  }
+  
   return (
-    <PageTransition>
-      <div className="min-h-screen">
-        <Header title="Admin Panel" />
+    <>
+      <Helmet>
+        <title>Admin Dashboard | Community Platform</title>
+      </Helmet>
+      
+      <Shell>
+        <PageTitle 
+          heading="Admin Dashboard" 
+          text="Manage users, content, and settings for the platform."
+        />
         
-        <main className="container py-8">
-          <div className="flex flex-col lg:flex-row gap-8">
-            {/* Sidebar */}
-            <div className="w-full lg:w-64 flex-shrink-0">
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <Tab value="dashboard">Dashboard</Tab>
-                <Tab value="users">Users</Tab>
-                <Tab value="content">Content</Tab>
-                <Tab value="settings">Settings</Tab>
-              </Tabs>
-            </div>
-            
-            {/* Main content */}
-            <div className="flex-1">
-              {isLoading ? (
-                <div className="flex justify-center py-16">
-                  <Spinner size="lg" />
-                </div>
-              ) : (
-                <>
-                  {activeTab === 'dashboard' && <AdminStats stats={statsData || {}} />}
-                  {activeTab === 'users' && <AdminUsers users={usersData || []} />}
-                  {activeTab === 'content' && <AdminContent content={contentData || {}} />}
-                  {activeTab === 'settings' && <AdminSettings />}
-                </>
-              )}
-            </div>
-          </div>
-        </main>
-      </div>
-    </PageTransition>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4 mb-8">
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="content">Content</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="dashboard">
+            <AdminStats stats={stats || {}} />
+          </TabsContent>
+          
+          <TabsContent value="users">
+            <AdminUsers users={users || []} />
+          </TabsContent>
+          
+          <TabsContent value="content">
+            <AdminContent />
+          </TabsContent>
+          
+          <TabsContent value="settings">
+            <AdminSettings />
+          </TabsContent>
+        </Tabs>
+      </Shell>
+    </>
   );
 };
 

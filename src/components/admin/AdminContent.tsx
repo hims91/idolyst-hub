@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Pagination } from '@/components/ui/pagination';
 import { useToast } from '@/components/ui/use-toast';
+import adminService from '@/services/api/admin';
 
 export const AdminContent = () => {
   const { toast } = useToast();
@@ -22,62 +23,7 @@ export const AdminContent = () => {
 
   const { data: postsData, isLoading: postsLoading } = useQuery({
     queryKey: ['admin', 'posts', state],
-    queryFn: async () => {
-      let query = supabase
-        .from('posts')
-        .select(`
-          id,
-          content,
-          user_id,
-          visibility,
-          created_at,
-          upvotes,
-          downvotes
-        `)
-        .order(state.sortBy, { ascending: state.sortOrder === 'asc' });
-      
-      if (state.search) {
-        query = query.ilike('content', `%${state.search}%`);
-      }
-      
-      if (state.status !== 'all') {
-        query = query.eq('visibility', state.status);
-      }
-      
-      const { data, error, count } = await query.range(
-        (state.page - 1) * 10, 
-        state.page * 10 - 1
-      );
-      
-      if (error) {
-        console.error('Error fetching posts:', error);
-        throw error;
-      }
-      
-      // For mock data since we don't have all the fields yet
-      const posts: AdminPost[] = data.map(post => ({
-        id: post.id,
-        title: post.content.substring(0, 50) + '...', // Use content as title
-        author: {
-          id: post.user_id,
-          name: 'User ' + post.user_id.substring(0, 5) // Mock author name
-        },
-        category: 'General', // Default category
-        status: post.visibility,
-        createdAt: post.created_at,
-        updatedAt: post.created_at,
-        upvotes: post.upvotes || 0,
-        downvotes: post.downvotes || 0,
-        commentsCount: 0
-      }));
-      
-      return {
-        items: posts,
-        currentPage: state.page,
-        totalPages: Math.ceil((count || 10) / 10),
-        total: count || 0
-      } as PaginatedResponse<AdminPost>;
-    }
+    queryFn: async () => adminService.getAdminContent(state)
   });
 
   const handleStatusChange = async (postId: string, status: string) => {

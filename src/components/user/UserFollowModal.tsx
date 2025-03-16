@@ -1,148 +1,189 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { userService } from '@/services/api/user';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { getFollowers, getFollowing, followUser, unfollowUser } from '@/services/userService';
-import { User } from '@/types/api';
-import { Button } from '@/components/ui/button';
-import { useAuthSession } from '@/hooks/useAuthSession';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
+import { useRequireAuth } from '@/hooks/use-auth-route';
 
 interface UserFollowModalProps {
   userId: string;
-  type: 'followers' | 'following';
-  isOpen: boolean;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  activeTab?: 'followers' | 'following';
 }
 
 const UserFollowModal: React.FC<UserFollowModalProps> = ({
   userId,
-  type,
-  isOpen,
-  onClose
+  open,
+  onOpenChange,
+  activeTab = 'followers'
 }) => {
-  const auth = useAuthSession();
-  const isAuthenticated = Boolean(auth?.isValidSession);
-  const currentUserId = auth?.userId;
-  const navigate = useNavigate();
+  const [tab, setTab] = useState<'followers' | 'following'>(activeTab);
+  const { user } = useAuth();
   const { toast } = useToast();
-  const [followStatus, setFollowStatus] = useState<Record<string, boolean>>({});
+  const auth = useRequireAuth();
+  const currentUserId = user?.id;
 
-  const { data: users, isLoading, refetch } = useQuery({
-    queryKey: [`user-${type}`, userId],
-    queryFn: () => type === 'followers' ? getFollowers(userId) : getFollowing(userId),
-    enabled: isOpen,
-    onSuccess: (data) => {
-      // Set initial follow status
-      const statusMap: Record<string, boolean> = {};
-      data.forEach(user => {
-        statusMap[user.id] = Boolean(user.isFollowing);
-      });
-      setFollowStatus(statusMap);
-    }
+  const { data: followers, isLoading: followersLoading } = useQuery({
+    queryKey: ['followers', userId],
+    queryFn: () => userService.getUserFollowers(userId),
+    enabled: open && tab === 'followers'
   });
 
-  const handleFollowToggle = async (user: User) => {
-    if (!isAuthenticated) {
+  const { data: following, isLoading: followingLoading } = useQuery({
+    queryKey: ['following', userId],
+    queryFn: () => userService.getUserFollowing(userId),
+    enabled: open && tab === 'following'
+  });
+
+  const handleFollow = async (targetUserId: string) => {
+    if (!currentUserId) {
       toast({
-        title: 'Authentication required',
-        description: 'Please sign in to follow users',
-        variant: 'destructive'
+        title: "Authentication required",
+        description: "Please sign in to follow users",
+        variant: "destructive"
       });
       return;
     }
 
     try {
-      if (followStatus[user.id]) {
-        await unfollowUser(user.id);
-        setFollowStatus(prev => ({ ...prev, [user.id]: false }));
-        toast({
-          title: 'Unfollowed',
-          description: `You no longer follow ${user.name}`
-        });
-      } else {
-        await followUser(user.id);
-        setFollowStatus(prev => ({ ...prev, [user.id]: true }));
-        toast({
-          title: 'Following',
-          description: `You are now following ${user.name}`
-        });
-      }
-      refetch();
+      await userService.followUser(targetUserId);
+      toast({
+        title: "Success",
+        description: "You are now following this user"
+      });
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to update follow status',
-        variant: 'destructive'
+        title: "Error",
+        description: "Failed to follow user",
+        variant: "destructive"
       });
     }
   };
 
-  const navigateToProfile = (userId: string) => {
-    onClose();
-    navigate(`/profile/${userId}`);
+  const handleUnfollow = async (targetUserId: string) => {
+    if (!currentUserId) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to unfollow users",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      await userService.unfollowUser(targetUserId);
+      toast({
+        title: "Success",
+        description: "You have unfollowed this user"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to unfollow user",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {type === 'followers' ? 'Followers' : 'Following'}
+            {tab === 'followers' ? 'Followers' : 'Following'}
           </DialogTitle>
         </DialogHeader>
         
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Spinner />
-          </div>
-        ) : (
-          <div className="max-h-[60vh] overflow-y-auto pr-2">
-            {users && users.length > 0 ? (
-              <ul className="space-y-4">
-                {users.map((user) => (
-                  <li key={user.id} className="flex items-center justify-between">
-                    <div 
-                      className="flex items-center gap-3 cursor-pointer" 
-                      onClick={() => navigateToProfile(user.id)}
-                    >
+        <Tabs value={tab} onValueChange={(value) => setTab(value as 'followers' | 'following')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="followers">Followers</TabsTrigger>
+            <TabsTrigger value="following">Following</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="followers" className="mt-4">
+            {followersLoading ? (
+              <div className="flex justify-center p-4">
+                <Spinner />
+              </div>
+            ) : followers && followers.length > 0 ? (
+              <div className="space-y-4">
+                {followers.map(follower => (
+                  <div key={follower.id} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
                       <Avatar>
-                        <AvatarImage src={user.avatar} alt={user.name} />
-                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                        <AvatarImage src={follower.avatar} />
+                        <AvatarFallback>{follower.name.substring(0, 2)}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="font-medium">{user.name}</p>
-                        {user.role && (
-                          <p className="text-sm text-muted-foreground">{user.role}</p>
-                        )}
+                        <p className="font-medium">{follower.name}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-1">{follower.bio || 'No bio'}</p>
                       </div>
                     </div>
                     
-                    {currentUserId !== user.id && (
-                      <Button
-                        variant={followStatus[user.id] ? 'secondary' : 'default'}
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleFollowToggle(user);
-                        }}
+                    {currentUserId && currentUserId !== follower.id && (
+                      <Button 
+                        size="sm" 
+                        variant={follower.isFollowing ? "outline" : "default"}
+                        onClick={() => follower.isFollowing 
+                          ? handleUnfollow(follower.id) 
+                          : handleFollow(follower.id)
+                        }
                       >
-                        {followStatus[user.id] ? 'Unfollow' : 'Follow'}
+                        {follower.isFollowing ? 'Unfollow' : 'Follow'}
                       </Button>
                     )}
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             ) : (
-              <p className="text-center py-6 text-muted-foreground">
-                No {type} found
-              </p>
+              <p className="text-center text-muted-foreground p-4">No followers yet</p>
             )}
-          </div>
-        )}
+          </TabsContent>
+          
+          <TabsContent value="following" className="mt-4">
+            {followingLoading ? (
+              <div className="flex justify-center p-4">
+                <Spinner />
+              </div>
+            ) : following && following.length > 0 ? (
+              <div className="space-y-4">
+                {following.map(user => (
+                  <div key={user.id} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Avatar>
+                        <AvatarImage src={user.avatar} />
+                        <AvatarFallback>{user.name.substring(0, 2)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{user.name}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-1">{user.bio || 'No bio'}</p>
+                      </div>
+                    </div>
+                    
+                    {currentUserId && currentUserId !== user.id && (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleUnfollow(user.id)}
+                      >
+                        Unfollow
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground p-4">Not following anyone yet</p>
+            )}
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
