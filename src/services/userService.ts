@@ -1,11 +1,11 @@
-
-import { supabase } from "@/integrations/supabase/client";
-import { Post, User, UserProfile } from "@/types/api";
-import { formatTimeAgo } from "@/lib/utils";
+import { supabase } from '@/integrations/supabase/client';
+import { User, UserProfile, Post, PaginatedResponse } from '@/types/api';
+import { formatDistance } from 'date-fns';
+import { safeGetProperty } from '@/utils/supabaseHelpers';
 
 export const getUserProfile = async (userId: string): Promise<UserProfile | null> => {
   try {
-    const { data, error } = await supabase
+    const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
@@ -16,37 +16,46 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
       return null;
     }
 
-    if (!data) {
-      return null;
-    }
+    const { count: followersCount } = await supabase
+      .from('user_followers')
+      .select('*', { count: 'exact' })
+      .eq('following_id', userId);
 
-    const followersCount = await getFollowersCount(userId);
-    const followingCount = await getFollowingCount(userId);
+    const { count: followingCount } = await supabase
+      .from('user_followers')
+      .select('*', { count: 'exact' })
+      .eq('follower_id', userId);
 
-    // Transform to UserProfile format
-    const profile: UserProfile = {
-      id: data.id,
-      name: data.name || 'Anonymous',
-      email: data.email || '',
-      avatar: data.avatar || '',
-      role: data.role || 'user',
-      bio: data.bio || '',
-      location: data.location || '',
-      company: data.company || '',
-      website: data.website || '',
-      joinedOn: data.join_date || data.created_at || new Date().toISOString(),
-      skills: [],  // Default empty array since skills column might not exist
-      followersCount,
-      followingCount,
-      socialLinks: {
-        // Add default social links or extract them from data if available
-      }
+    const email = await getUserEmail(userId);
+
+    return {
+      id: profile.id,
+      name: profile.name || 'Anonymous User',
+      email: email || '',
+      avatar: profile.avatar,
+      role: profile.role || 'user',
+      bio: profile.bio || '',
+      company: profile.company || '',
+      location: profile.location || '',
+      website: profile.website || '',
+      joinedOn: profile.join_date,
+      skills: [],
+      followersCount: followersCount || 0,
+      followingCount: followingCount || 0,
+      socialLinks: {},
     };
-
-    return profile;
   } catch (error) {
     console.error('Error in getUserProfile:', error);
     return null;
+  }
+};
+
+const getUserEmail = async (userId: string): Promise<string> => {
+  try {
+    return '';
+  } catch (error) {
+    console.error('Error fetching user email:', error);
+    return '';
   }
 };
 
@@ -72,11 +81,10 @@ export const getUserPosts = async (userId: string): Promise<Post[]> => {
       return [];
     }
 
-    // Transform and add computed properties
     const posts = (data || []).map(post => {
       const createdAt = post.created_at;
-      const timeAgo = formatTimeAgo(createdAt);
-      
+      const timeAgo = formatDistance(createdAt, new Date());
+
       return {
         id: post.id,
         title: post.title || 'Untitled Post',
@@ -86,8 +94,8 @@ export const getUserPosts = async (userId: string): Promise<Post[]> => {
         timeAgo,
         upvotes: post.upvotes || 0,
         downvotes: post.downvotes || 0,
-        commentCount: 0, // Would need another query to get this
-        category: 'General', // Default category
+        commentCount: 0,
+        category: 'General',
         comments: [],
         author: {
           id: safeGetProperty(post.author, 'id', ''),
@@ -122,7 +130,6 @@ export const getFollowers = async (userId: string): Promise<User[]> => {
       return [];
     }
 
-    // Transform and handle null follower
     const followers = (data || [])
       .map(item => {
         if (!item.follower) return null;
@@ -158,7 +165,6 @@ export const getFollowing = async (userId: string): Promise<User[]> => {
       return [];
     }
 
-    // Transform and handle null following
     const following = (data || [])
       .map(item => {
         if (!item.following) return null;
@@ -229,18 +235,12 @@ export const unfollowUser = async (userId: string): Promise<void> => {
   }
 };
 
-// Helper functions
 const formatDate = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
-};
-
-// Safe property getter
-const safeGetProperty = (obj: any, key: string, defaultValue: any): any => {
-  return obj && obj[key] !== undefined ? obj[key] : defaultValue;
 };
 
 const getFollowersCount = async (userId: string): Promise<number> => {
@@ -271,7 +271,6 @@ const getFollowingCount = async (userId: string): Promise<number> => {
   return count || 0;
 };
 
-// Export all functions
 export const userService = {
   getUserProfile,
   getUserPosts,

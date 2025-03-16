@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Event, EventFilter, EventFormData, EventWithDetails, PaginatedResponse, User } from '@/types/api';
 import { formatEventFromSupabase, safeGetProperty, safeQueryResult, safeSupabaseOperation } from '@/utils/supabaseHelpers';
@@ -184,7 +185,7 @@ export const deleteEvent = async (id: string): Promise<boolean> => {
 // Function to get all event categories
 export const getEventCategories = async (): Promise<string[]> => {
   try {
-    // Direct SQL query using custom function
+    // Direct query to distinct categories from events table
     const { data, error } = await supabase
       .from('events')
       .select('category')
@@ -291,6 +292,7 @@ export const isUserRegistered = async (eventId: string): Promise<boolean> => {
   return (data?.length || 0) > 0;
 };
 
+// Function to get event attendees
 export const getEventAttendees = async (eventId: string): Promise<User[]> => {
   try {
     const { data, error } = await supabase
@@ -332,16 +334,4 @@ export const getEventAttendees = async (eventId: string): Promise<User[]> => {
   }
 };
 
-// Export all functions together
-export { 
-  getEvents,
-  getEvent,
-  createEvent,
-  updateEvent,
-  deleteEvent,
-  getEventCategories,
-  registerForEvent,
-  cancelEventRegistration,
-  isUserRegistered,
-  getEventAttendees
-};
+// No duplicate export block at the end - this was causing the errors

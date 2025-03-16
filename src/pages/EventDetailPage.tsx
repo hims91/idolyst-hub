@@ -26,7 +26,7 @@ import {
 import { Helmet } from 'react-helmet-async';
 import { Separator } from '@/components/ui/separator';
 import { PageTitle } from '@/components/ui/page-title';
-import eventService from '@/services/eventService';
+import * as eventService from '@/services/eventService';
 import { userService } from '@/services/userService';
 
 const EventDetailPage: React.FC = () => {

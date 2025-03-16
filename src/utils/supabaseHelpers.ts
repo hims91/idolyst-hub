@@ -1,10 +1,11 @@
+
 import { PostgrestError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 // Helper function to check if a table exists
 export const checkTableExists = async (tableName: string): Promise<boolean> => {
   try {
-    // Use a raw query instead of the from method for information_schema
+    // Use a raw query (RPC) to check if table exists
     const { data, error } = await supabase
       .rpc('check_column_exists', {
         table_name: 'tables',
@@ -16,7 +17,7 @@ export const checkTableExists = async (tableName: string): Promise<boolean> => {
       return false;
     }
 
-    return (data?.length || 0) > 0;
+    return data === true;
   } catch (error) {
     console.error(`Error in checkTableExists for table: ${tableName}`, error);
     return false;

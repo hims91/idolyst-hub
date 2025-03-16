@@ -9,7 +9,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Helmet } from 'react-helmet-async';
 import { AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import eventService from '@/services/eventService';
+import * as eventService from '@/services/eventService';
 import EventForm from '@/components/EventForm';
 
 const EventFormPage: React.FC = () => {

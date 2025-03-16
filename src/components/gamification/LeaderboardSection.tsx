@@ -21,7 +21,19 @@ const LeaderboardSection: React.FC = () => {
         // Fetch leaderboard data
         const data = await gamificationService.getLeaderboard(20);
         if (data) {
-          setLeaderboard(data);
+          // Ensure data has the right shape by mapping to LeaderboardEntry
+          const formattedData: LeaderboardEntry[] = data.map(entry => ({
+            userId: entry.userId,
+            id: entry.userId, // Use userId as id if missing
+            name: entry.name,
+            avatar: entry.avatar,
+            points: entry.points,
+            rank: entry.rank,
+            level: entry.level,
+            badgeCount: entry.badgeCount,
+            challengeCount: entry.challengeCount
+          }));
+          setLeaderboard(formattedData);
         }
       } catch (error) {
         console.error('Error fetching leaderboard:', error);
