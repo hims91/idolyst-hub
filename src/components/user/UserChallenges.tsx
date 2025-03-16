@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Challenge } from '@/types/api';
 
@@ -20,15 +21,15 @@ const UserChallenges = () => {
       title: uc.title,
       description: uc.description,
       points: uc.points,
-      requirements: '',
-      isActive: true,
-      // Add any other required properties
+      requirements: '', // Default value for required field
+      isActive: !uc.isCompleted // Convert isCompleted to isActive
     }));
   };
   
   // Example of safe usage
   const updateChallenges = (userChallenges: UserChallenge[]) => {
-    setChallenges(transformChallenges(userChallenges));
+    const transformedChallenges = transformChallenges(userChallenges);
+    setChallenges(transformedChallenges);
   };
 
   return (

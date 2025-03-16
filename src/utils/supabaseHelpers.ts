@@ -106,3 +106,23 @@ export async function checkColumnExists(table: string, column: string): Promise<
     return false;
   }
 }
+
+// Check if a table exists in the database
+export async function checkTableExists(tableName: string): Promise<boolean> {
+  try {
+    // Using a simplified approach to check if table exists
+    const { data, error } = await supabase
+      .from(tableName as any)
+      .select('*')
+      .limit(1);
+    
+    if (error && error.code === '42P01') { // Table does not exist error code
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error(`Error checking if table ${tableName} exists:`, error);
+    return false;
+  }
+}

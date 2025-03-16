@@ -1,5 +1,7 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { AdminStats, AdminContentState, AdminUser, AdminPost, PaginatedResponse, EmailSettingsForm } from '@/types/api';
+import { safeGetProperty } from '@/utils/supabaseHelpers';
 
 // Get admin dashboard stats
 export const getAdminStats = async (): Promise<AdminStats> => {
@@ -76,18 +78,18 @@ export const getAdminUsers = async (state?: AdminContentState): Promise<AdminUse
   try {
     const { data: users, error } = await supabase
       .from('profiles')
-      .select('id, name, email, role, created_at');
+      .select('id, name, role, created_at');
 
     if (error) throw error;
 
-    // Transform to expected format
+    // Transform to expected format with safe property access
     return users.map(user => ({
-      id: user.id,
-      name: user.name || 'Unknown',
-      email: user.email || 'no-email@example.com',
-      role: user.role || 'user',
+      id: safeGetProperty(user, 'id', 'unknown'),
+      name: safeGetProperty(user, 'name', 'Unknown'),
+      email: 'no-email@example.com', // Default since email isn't in profiles table
+      role: safeGetProperty(user, 'role', 'user'),
       status: 'active', // Mock status
-      createdAt: user.created_at,
+      createdAt: safeGetProperty(user, 'created_at', new Date().toISOString()),
     }));
   } catch (error) {
     console.error('Error fetching admin users:', error);
@@ -102,17 +104,7 @@ export const getAdminContent = async (state?: AdminContentState): Promise<Pagina
     
     let query = supabase
       .from('posts')
-      .select(`
-        id,
-        title,
-        content,
-        user_id,
-        visibility,
-        created_at,
-        updated_at,
-        category,
-        comments:comment_count
-      `);
+      .select('id, title, content, user_id, created_at');
     
     if (search) {
       query = query.ilike('content', `%${search}%`);
@@ -130,18 +122,18 @@ export const getAdminContent = async (state?: AdminContentState): Promise<Pagina
     
     if (error) throw error;
     
-    // Transform to expected format
+    // Transform to expected format with safe property access
     const posts: AdminPost[] = data.map(post => ({
-      id: post.id,
-      title: post.title || post.content.substring(0, 50) + '...',
+      id: safeGetProperty(post, 'id', 'unknown'),
+      title: safeGetProperty(post, 'title', post.content?.substring(0, 50) + '...') || 'Untitled Post',
       author: {
-        id: post.user_id,
-        name: 'User ' + post.user_id.substring(0, 5), // Mock author name
+        id: safeGetProperty(post, 'user_id', 'unknown'),
+        name: 'User ' + safeGetProperty(post, 'user_id', 'unknown').substring(0, 5), // Mock author name
       },
-      category: post.category || 'General',
-      status: post.visibility || 'public',
-      comments: post.comments || 0,
-      published: post.created_at,
+      category: 'General', // Default category
+      status: 'public', // Default status
+      comments: 0, // Default comment count
+      published: safeGetProperty(post, 'created_at', new Date().toISOString()),
     }));
     
     return {

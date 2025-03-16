@@ -4,7 +4,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { format, parseISO, isAfter, isBefore } from 'date-fns';
+import { format, parseISO } from 'date-fns';
+import { isAfter, isBefore } from 'date-fns'; // Add explicit imports for date-fns functions
 import { Shell } from '@/components/ui/shell';
 import { PageTitle } from '@/components/ui/page-title';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { MapPin, Calendar, Clock, Users, Globe, Share2, AlertTriangle } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import eventService from '@/services/eventService';
-import userService from '@/services/userService';
+import { userService } from '@/services/userService'; // Fix import to use named export
 import { EventWithDetails, User } from '@/types/api';
 import { Helmet } from 'react-helmet-async';
 

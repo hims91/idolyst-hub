@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Post, User, UserProfile } from "@/types/api";
 import { formatTimeAgo } from "@/lib/utils";
@@ -332,3 +331,14 @@ const formatDate = (dateString: string): string => {
     day: 'numeric',
   });
 };
+
+export const userService = {
+  getUserProfile,
+  getUserPosts,
+  getFollowers,
+  getFollowing,
+  followUser,
+  unfollowUser
+};
+
+export default userService;

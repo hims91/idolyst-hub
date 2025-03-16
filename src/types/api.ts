@@ -272,3 +272,13 @@ export interface UserProfileProps {
   onFollowersClick?: () => void;
   onFollowingClick?: () => void;
 }
+
+// Add Challenge type that was missing
+export interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  points: number;
+  requirements: string;
+  isActive: boolean;
+}

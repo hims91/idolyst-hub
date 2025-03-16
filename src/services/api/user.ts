@@ -1,6 +1,7 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types/api";
-import { safeQueryResult, checkColumnExists } from "@/utils/supabaseHelpers";
+import { safeGetProperty, checkColumnExists } from "@/utils/supabaseHelpers";
 
 const getUser = async (userId: string): Promise<User | null> => {
   try {
@@ -23,8 +24,7 @@ const getUser = async (userId: string): Promise<User | null> => {
       avatar: data.avatar,
       role: data.role || 'user',
       bio: data.bio,
-      // Only include skills if the column exists
-      ...(hasSkills && data.skills ? { skills: data.skills } : {})
+      // Don't include skills if not present in the data
     };
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -37,45 +37,37 @@ const getUserFollowers = async (userId: string): Promise<User[]> => {
     const { data, error } = await supabase
       .from('user_followers')
       .select(`
-        follower:follower_id (
-          id,
-          name,
-          avatar,
-          bio,
-          role
-        )
+        follower_id
       `)
       .eq('following_id', userId);
     
     if (error) throw error;
     
-    // Check if current user is following these followers
-    const currentUser = (await supabase.auth.getUser()).data.user;
+    // For each follower_id, get the user profile
+    const followers: User[] = [];
     
-    // Transform to expected format
-    const followers = data.map(item => {
-      if (!item.follower) {
-        return {
-          id: 'unknown',
-          name: 'Unknown User',
-          avatar: '',
-          role: 'user',
-          bio: '',
-          isFollowing: false
-        };
+    for (const item of data) {
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('id, name, avatar, role, bio')
+        .eq('id', item.follower_id)
+        .single();
+        
+      if (!userError && userData) {
+        followers.push({
+          id: userData.id,
+          name: userData.name || 'Unknown User',
+          avatar: userData.avatar,
+          role: userData.role || 'user',
+          bio: userData.bio || '',
+          isFollowing: false // Will be updated below if needed
+        });
       }
-      
-      return {
-        id: item.follower.id,
-        name: item.follower.name || 'Unknown User',
-        avatar: item.follower.avatar,
-        role: item.follower.role || 'user',
-        bio: item.follower.bio || '',
-        isFollowing: false // Will be updated below if needed
-      };
-    });
+    }
     
     // If user is logged in, check which followers they are following
+    const currentUser = (await supabase.auth.getUser()).data.user;
+    
     if (currentUser) {
       const { data: followingData } = await supabase
         .from('user_followers')
@@ -101,40 +93,35 @@ const getUserFollowing = async (userId: string): Promise<User[]> => {
     const { data, error } = await supabase
       .from('user_followers')
       .select(`
-        following:following_id (
-          id,
-          name,
-          avatar,
-          bio,
-          role
-        )
+        following_id
       `)
       .eq('follower_id', userId);
     
     if (error) throw error;
     
-    // Transform to expected format
-    return data.map(item => {
-      if (!item.following) {
-        return {
-          id: 'unknown',
-          name: 'Unknown User',
-          avatar: '',
-          role: 'user',
-          bio: '',
+    // For each following_id, get the user profile
+    const following: User[] = [];
+    
+    for (const item of data) {
+      const { data: userData, error: userError } = await supabase
+        .from('profiles')
+        .select('id, name, avatar, role, bio')
+        .eq('id', item.following_id)
+        .single();
+        
+      if (!userError && userData) {
+        following.push({
+          id: userData.id,
+          name: userData.name || 'Unknown User',
+          avatar: userData.avatar,
+          role: userData.role || 'user',
+          bio: userData.bio || '',
           isFollowing: true
-        };
+        });
       }
-      
-      return {
-        id: item.following.id,
-        name: item.following.name || 'Unknown User',
-        avatar: item.following.avatar,
-        role: item.following.role || 'user',
-        bio: item.following.bio || '',
-        isFollowing: true
-      };
-    });
+    }
+    
+    return following;
   } catch (error) {
     console.error('Error fetching following:', error);
     throw error;

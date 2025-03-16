@@ -46,9 +46,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import commentService from '@/services/commentService';
-import postService from '@/services/postService';
-import userService from '@/services/userService';
+import { commentService } from '@/services/commentService';
+import { postService } from '@/services/postService';
+import { userService } from '@/services/userService'; // Fix import to use named export
 import { Post, Comment } from '@/types/api';
 
 interface PostDetailProps {
