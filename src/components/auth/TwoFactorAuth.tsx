@@ -1,230 +1,221 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Spinner } from '@/components/ui/spinner';
-import { ShieldCheck, ShieldAlert, Check, Smartphone, X } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { twoFactorAuthService } from '@/services/twoFactorAuthService';
-import { TwoFactorAuthSetupResponse, TwoFactorAuthVerifyResponse } from '@/types/gamification';
+import { Separator } from '@/components/ui/separator';
+import { Shield, ShieldOff, Copy } from 'lucide-react';
+import twoFactorAuthService from '@/services/twoFactorAuthService';
 
-interface TwoFactorAuthProps {
+export interface TwoFactorAuthProps {
   userId: string;
   is2FAEnabled: boolean;
   onStatusChange: (isEnabled: boolean) => void;
 }
 
 const TwoFactorAuth: React.FC<TwoFactorAuthProps> = ({ userId, is2FAEnabled, onStatusChange }) => {
-  const [setupStep, setSetupStep] = useState<'initial' | 'scan' | 'verify'>('initial');
-  const [verifyCode, setVerifyCode] = useState('');
-  const [disableCode, setDisableCode] = useState('');
-  const [qrCodeData, setQrCodeData] = useState<string>('');
-  const [secret, setSecret] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDisabling, setIsDisabling] = useState(false);
   const { toast } = useToast();
+  const [isSetupMode, setIsSetupMode] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [secret, setSecret] = useState('');
+  const [qrCode, setQrCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleStartSetup = async () => {
-    setIsLoading(true);
+  const setupTwoFactorAuth = async () => {
     try {
-      const result: TwoFactorAuthSetupResponse = await twoFactorAuthService.setupTwoFactorAuth(userId);
-      
-      if (!result.success) {
-        toast({
-          title: 'Setup failed',
-          description: result.message || 'Failed to start 2FA setup',
-          variant: 'destructive',
-        });
-        return;
-      }
-      
-      setQrCodeData(result.qrCode);
-      setSecret(result.secret);
-      setSetupStep('scan');
+      setIsLoading(true);
+      const response = await twoFactorAuthService.setupTwoFactorAuth(userId);
+      setQrCode(response.qrCode);
+      setSecret(response.secret);
+      setIsSetupMode(true);
     } catch (error) {
       toast({
-        title: 'Setup error',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
-        variant: 'destructive',
+        title: "Setup Failed",
+        description: error instanceof Error ? error.message : "Failed to setup 2FA. Please try again.",
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleVerifyCode = async () => {
-    if (!verifyCode || verifyCode.length !== 6) {
-      toast({
-        title: 'Invalid code',
-        description: 'Please enter a valid 6-digit code',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setIsLoading(true);
+  const verifyAndEnableTwoFactorAuth = async () => {
     try {
-      const result: TwoFactorAuthVerifyResponse = await twoFactorAuthService.verifyTwoFactorSetup(userId, verifyCode, secret);
+      setIsLoading(true);
+      const response = await twoFactorAuthService.verifyTwoFactorSetup(userId, verificationCode, secret);
       
-      if (result.success) {
+      if (response.success) {
         toast({
-          title: '2FA Enabled',
-          description: 'Two-factor authentication has been successfully enabled for your account',
+          title: "2FA Enabled",
+          description: "Two-factor authentication has been successfully enabled!",
         });
         onStatusChange(true);
-        setSetupStep('initial');
+        setIsSetupMode(false);
+        setVerificationCode('');
       } else {
         toast({
-          title: 'Verification failed',
-          description: result.message || 'The code you entered is incorrect',
-          variant: 'destructive',
+          title: "Verification Failed",
+          description: response.message || "Invalid verification code. Please try again.",
+          variant: "destructive"
         });
       }
     } catch (error) {
       toast({
-        title: 'Verification error',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
-        variant: 'destructive',
+        title: "Verification Failed",
+        description: error instanceof Error ? error.message : "Failed to verify code. Please try again.",
+        variant: "destructive"
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDisableTwoFactor = async () => {
-    if (!disableCode || disableCode.length !== 6) {
-      toast({
-        title: 'Invalid code',
-        description: 'Please enter a valid 6-digit code',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setIsDisabling(true);
+  const disableTwoFactorAuth = async () => {
     try {
-      const result: TwoFactorAuthVerifyResponse = await twoFactorAuthService.disableTwoFactorAuth(userId, disableCode);
+      setIsLoading(true);
+      const response = await twoFactorAuthService.disableTwoFactorAuth(userId, verificationCode);
       
-      if (result.success) {
+      if (response.success) {
         toast({
-          title: '2FA Disabled',
-          description: 'Two-factor authentication has been disabled for your account',
+          title: "2FA Disabled",
+          description: "Two-factor authentication has been disabled.",
         });
         onStatusChange(false);
-        setDisableCode('');
+        setVerificationCode('');
       } else {
         toast({
-          title: 'Disable failed',
-          description: result.message || 'The code you entered is incorrect',
-          variant: 'destructive',
+          title: "Verification Failed",
+          description: response.message || "Invalid verification code. Please try again.",
+          variant: "destructive"
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
-        variant: 'destructive',
+        title: "Disable Failed",
+        description: error instanceof Error ? error.message : "Failed to disable 2FA. Please try again.",
+        variant: "destructive"
       });
     } finally {
-      setIsDisabling(false);
+      setIsLoading(false);
     }
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xl">Two-Factor Authentication</CardTitle>
-          <Badge variant={is2FAEnabled ? "default" : "outline"}>
-            {is2FAEnabled ? (
-              <><ShieldCheck className="h-3 w-3 mr-1" /> Enabled</>
-            ) : (
-              <><ShieldAlert className="h-3 w-3 mr-1" /> Disabled</>
-            )}
-          </Badge>
-        </div>
-        <CardDescription>
-          Add an extra layer of security to your account by requiring a code from your mobile device when you sign in.
-        </CardDescription>
-      </CardHeader>
-      
-      <CardContent>
-        {!is2FAEnabled ? (
-          <>
-            {setupStep === 'initial' && (
-              <div className="flex flex-col items-center py-4">
-                <Smartphone className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-center text-sm text-muted-foreground mb-4">
-                  Two-factor authentication adds an additional layer of security to your account by requiring a code from your mobile device when you sign in.
-                </p>
-                <Button onClick={handleStartSetup} disabled={isLoading}>
-                  {isLoading && <Spinner size="sm" className="mr-2" />}
-                  Set up two-factor authentication
-                </Button>
-              </div>
-            )}
-            
-            {setupStep === 'scan' && (
-              <div className="flex flex-col items-center py-2">
-                <div className="mb-4">
-                  <img src={qrCodeData} alt="QR Code for 2FA" className="h-48 w-48 border rounded" />
-                </div>
-                <p className="text-center text-sm text-muted-foreground mb-4">
-                  Scan this QR code with your authenticator app, then enter the 6-digit code below.
-                </p>
-                <div className="flex flex-col space-y-2 w-full max-w-xs mb-4">
-                  <Input 
-                    type="text"
-                    placeholder="Enter 6-digit code"
-                    value={verifyCode}
-                    onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').substring(0, 6))}
-                    maxLength={6}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => setSetupStep('initial')}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleVerifyCode} disabled={isLoading || verifyCode.length !== 6}>
-                    {isLoading && <Spinner size="sm" className="mr-2" />}
-                    Verify & Activate
-                  </Button>
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="flex flex-col items-center py-4">
-            <div className="bg-green-50 dark:bg-green-900/20 rounded-full p-3 mb-4">
-              <Check className="h-6 w-6 text-green-600 dark:text-green-400" />
-            </div>
-            <p className="text-center text-sm text-muted-foreground mb-4">
-              Two-factor authentication is currently enabled for your account. To disable it, enter the 6-digit code from your authenticator app.
-            </p>
-            <div className="flex flex-col space-y-2 w-full max-w-xs mb-4">
-              <Input 
-                type="text"
-                placeholder="Enter 6-digit code"
-                value={disableCode}
-                onChange={(e) => setDisableCode(e.target.value.replace(/\D/g, '').substring(0, 6))}
-                maxLength={6}
-              />
-            </div>
-            <Button 
-              variant="destructive" 
-              onClick={handleDisableTwoFactor}
-              disabled={isDisabling || disableCode.length !== 6}
-            >
-              {isDisabling && <Spinner size="sm" className="mr-2" />}
-              <X className="h-4 w-4 mr-2" />
-              Disable Two-Factor Authentication
+  const copySecret = () => {
+    navigator.clipboard.writeText(secret);
+    toast({
+      title: "Copied",
+      description: "Secret key copied to clipboard!",
+    });
+  };
+
+  if (isSetupMode) {
+    return (
+      <Card className="p-4">
+        <h3 className="text-lg font-semibold mb-2">Set Up Two-Factor Authentication</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Scan the QR code with your authenticator app or enter the secret key manually.
+        </p>
+        <div className="flex flex-col items-center space-y-4 mb-4">
+          <img src={qrCode} alt="QR Code for 2FA" className="w-40 h-40 mb-2" />
+          <div className="flex items-center space-x-2">
+            <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-sm">{secret}</code>
+            <Button variant="ghost" size="icon" onClick={copySecret}>
+              <Copy className="h-4 w-4" />
             </Button>
           </div>
+        </div>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="verify-code" className="text-sm font-medium">
+              Verification Code
+            </label>
+            <Input
+              id="verify-code"
+              placeholder="Enter 6-digit code"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              maxLength={6}
+            />
+          </div>
+          <div className="flex space-x-2">
+            <Button onClick={() => setIsSetupMode(false)} variant="outline">
+              Cancel
+            </Button>
+            <Button onClick={verifyAndEnableTwoFactorAuth} disabled={verificationCode.length !== 6 || isLoading}>
+              Verify and Enable
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  if (is2FAEnabled) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Shield className="h-5 w-5 text-green-500" />
+            <div>
+              <h3 className="text-base font-medium">Two-Factor Authentication</h3>
+              <p className="text-sm text-muted-foreground">
+                Your account is protected with 2FA.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setIsSetupMode(true)}
+            disabled={isLoading}
+          >
+            <ShieldOff className="h-4 w-4 mr-2" />
+            Disable
+          </Button>
+        </div>
+        {isSetupMode && (
+          <div className="space-y-2">
+            <Input
+              placeholder="Enter verification code"
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value)}
+              maxLength={6}
+            />
+            <div className="flex space-x-2">
+              <Button variant="outline" onClick={() => setIsSetupMode(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={disableTwoFactorAuth}
+                disabled={verificationCode.length !== 6 || isLoading}
+              >
+                Confirm Disable
+              </Button>
+            </div>
+          </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center space-x-2">
+        <ShieldOff className="h-5 w-5 text-gray-400" />
+        <div>
+          <h3 className="text-base font-medium">Two-Factor Authentication</h3>
+          <p className="text-sm text-muted-foreground">
+            Increase your account security with 2FA.
+          </p>
+        </div>
+      </div>
+      <Button variant="outline" size="sm" onClick={setupTwoFactorAuth} disabled={isLoading}>
+        <Shield className="h-4 w-4 mr-2" />
+        Set Up
+      </Button>
+    </div>
   );
 };
 

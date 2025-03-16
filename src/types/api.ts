@@ -153,6 +153,7 @@ export interface PaginatedResponse<T> {
   currentPage: number;
   totalPages: number;
   total: number;
+  hasMore?: boolean;
 }
 
 export interface EventFilter {
@@ -218,4 +219,26 @@ export interface Notification {
   createdAt: string;
   linkTo?: string;
   sender?: User;
+}
+
+// Component props
+export interface EventsProps {
+  eventData: Event[];
+  categories: string[];
+  totalEvents: number;
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}
+
+export interface UserProfileProps {
+  profile: UserProfile;
+  posts: Post[];
+  userLevel: any;
+  badges: any[];
+  isOwnProfile: boolean;
+  onFollow: () => Promise<void>;
+  onUnfollow: () => Promise<void>;
+  onFollowersClick?: () => void;
+  onFollowingClick?: () => void;
 }

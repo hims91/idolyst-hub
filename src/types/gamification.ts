@@ -26,7 +26,17 @@ export interface UserChallenge {
   progress: number;
   isCompleted: boolean;
   completedAt?: string;
+  joinedAt?: string;
   points: number;
+}
+
+export interface Challenge {
+  id: string;
+  title: string;
+  description: string;
+  points: number;
+  requirements?: string;
+  isActive: boolean;
 }
 
 export interface Badge {
@@ -37,15 +47,20 @@ export interface Badge {
   category: string;
   pointsRequired: number;
   earnedAt?: string;
+  isEarned?: boolean;
+  progress?: number;
 }
 
 export interface LeaderboardEntry {
   userId: string;
+  id?: string;
   name: string;
   avatar?: string;
   points: number;
   rank: number;
   level: number;
+  badgeCount?: number;
+  challengeCount?: number;
 }
 
 export interface PostData {

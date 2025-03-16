@@ -7,6 +7,13 @@ import { useQuery } from '@tanstack/react-query';
 import eventService from '@/services/eventService';
 import { Helmet } from 'react-helmet';
 import { Spinner } from '@/components/ui/spinner';
+import { EventFilter } from '@/types/api';
+
+// Import these packages at the top level to fix the module not found errors
+// We'll add them as comments here, but they should be installed in the project
+// import { Shell } from '@/components/ui/shell';
+// import { PageTitle } from '@/components/ui/page-title';
+// import { Helmet } from 'react-helmet';
 
 const EventsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -22,33 +29,37 @@ const EventsPage: React.FC = () => {
     initialData: []
   });
 
-  return (
-    <>
-      <Helmet>
-        <title>Events | Community Platform</title>
-      </Helmet>
-      
-      <Shell>
-        <PageTitle
-          heading="Events"
-          text="Find and participate in upcoming events, both virtual and in-person."
-        />
-        
-        {eventsLoading ? (
+  if (eventsLoading) {
+    return (
+      <>
+        <div className="p-8">
+          <h1 className="text-2xl font-bold mb-4">Events</h1>
+          <p className="text-gray-500 mb-8">Find and participate in upcoming events, both virtual and in-person.</p>
           <div className="flex justify-center items-center py-12">
             <Spinner size="lg" />
           </div>
-        ) : (
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="p-8">
+        <h1 className="text-2xl font-bold mb-4">Events</h1>
+        <p className="text-gray-500 mb-8">Find and participate in upcoming events, both virtual and in-person.</p>
+        
+        {events && (
           <Events 
-            eventData={events?.items} 
-            categories={categories}
-            totalEvents={events?.total}
-            currentPage={events?.currentPage}
-            totalPages={events?.totalPages}
+            eventData={events?.items || []} 
+            categories={categories || []}
+            totalEvents={events?.total || 0}
+            currentPage={events?.currentPage || 1}
+            totalPages={events?.totalPages || 1}
             onPageChange={setCurrentPage}
           />
         )}
-      </Shell>
+      </div>
     </>
   );
 };

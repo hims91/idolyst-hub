@@ -16,7 +16,7 @@ import {
   GitPullRequest
 } from 'lucide-react';
 import { Badge as BadgeType } from '@/types/gamification';
-import { getUserBadges } from '@/services/gamificationService';
+import gamificationService from '@/services/gamificationService';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { Badge } from '@/components/ui/badge';
@@ -37,7 +37,7 @@ const BadgesSection: React.FC<BadgesSectionProps> = ({ type }) => {
       
       try {
         setIsLoading(true);
-        const data = await getUserBadges(user.id, type);
+        const data = await gamificationService.getUserBadges(user.id, type);
         setBadges(data || []);
       } catch (error) {
         console.error(`Error fetching ${type} badges:`, error);

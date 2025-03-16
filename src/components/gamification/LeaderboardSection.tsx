@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LeaderboardEntry } from '@/types/gamification';
-import { getLeaderboard } from '@/services/gamificationService';
+import gamificationService from '@/services/gamificationService';
 import { useToast } from '@/components/ui/use-toast';
 import { Trophy, Medal, Award, User, Shield } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,7 +18,7 @@ const LeaderboardSection: React.FC = () => {
         setIsLoading(true);
         
         // Fetch leaderboard data
-        const data = await getLeaderboard(20);
+        const data = await gamificationService.getLeaderboard(20);
         setLeaderboard(data || []);
       } catch (error) {
         console.error('Error fetching leaderboard:', error);
@@ -88,7 +88,7 @@ const LeaderboardSection: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {leaderboard.slice(0, 3).map((entry, index) => (
           <Card 
-            key={entry.id} 
+            key={entry.userId} 
             className={`${index === 0 ? 'md:col-span-1 md:order-2 ring-2 ring-yellow-400 dark:ring-yellow-600' : 
               index === 1 ? 'md:col-span-1 md:order-1' : 'md:col-span-1 md:order-3'}`}
           >
@@ -118,11 +118,11 @@ const LeaderboardSection: React.FC = () => {
                 </div>
                 <div>
                   <div className="font-semibold text-sm">Badges</div>
-                  <div>{entry.badgeCount}</div>
+                  <div>{entry.badgeCount || 0}</div>
                 </div>
                 <div>
                   <div className="font-semibold text-sm">Challenges</div>
-                  <div>{entry.challengeCount}</div>
+                  <div>{entry.challengeCount || 0}</div>
                 </div>
               </div>
             </CardContent>
@@ -139,7 +139,7 @@ const LeaderboardSection: React.FC = () => {
           <div className="space-y-2">
             {leaderboard.slice(3).map((entry) => (
               <div 
-                key={entry.id} 
+                key={entry.userId} 
                 className="flex items-center p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
               >
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full mr-4 ${getRankClass(entry.rank)}`}>
@@ -156,7 +156,7 @@ const LeaderboardSection: React.FC = () => {
                 <div className="flex-1">
                   <div className="font-medium">{entry.name}</div>
                   <div className="text-xs text-muted-foreground">
-                    Level {entry.level} • {entry.badgeCount} Badges
+                    Level {entry.level} • {entry.badgeCount || 0} Badges
                   </div>
                 </div>
                 

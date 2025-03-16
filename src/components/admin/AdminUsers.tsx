@@ -23,7 +23,7 @@ export const AdminUsers = () => {
     queryFn: () => adminService.getAdminUsers(),
   });
 
-  const handleStatusChange = async (userId: string, status: 'active' | 'suspended' | 'pending') => {
+  const handleStatusChange = async (userId: string, status: 'active' | 'suspended') => {
     await adminService.updateUserStatus(userId, status);
   };
 
@@ -84,7 +84,6 @@ export const AdminUsers = () => {
               <TableCell>
                 <Button onClick={() => handleStatusChange(user.id, 'active')}>Activate</Button>
                 <Button onClick={() => handleStatusChange(user.id, 'suspended')}>Suspend</Button>
-                <Button onClick={() => handleStatusChange(user.id, 'pending')}>Pending</Button>
               </TableCell>
             </TableRow>
           ))}

@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { useAuthSession } from '@/hooks/useAuthSession';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -47,7 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { gamificationService } from '@/services/gamificationService';
+import gamificationService from '@/services/gamificationService';
 import TwoFactorAuth from '@/components/auth/TwoFactorAuth';
 
 const profileFormSchema = z.object({
@@ -78,7 +79,7 @@ type ProfileData = z.infer<typeof profileFormSchema> & {
 }
 
 const Profile: React.FC<ProfileProps> = ({ userId }) => {
-  const auth = useAuthSession();
+  const auth = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
@@ -227,19 +228,21 @@ const Profile: React.FC<ProfileProps> = ({ userId }) => {
         </Accordion>
         <Separator />
         {/* 2FA Authentication */}
-        <TwoFactorAuth 
-          userId={auth?.user?.id}
-          is2FAEnabled={profileData?.has2FA || false}
-          onStatusChange={(status) => {
-            // Update the profile data
-            if (profileData) {
-              setProfileData({
-                ...profileData,
-                has2FA: status
-              });
-            }
-          }}
-        />
+        {auth?.user?.id && (
+          <TwoFactorAuth 
+            userId={auth.user.id}
+            is2FAEnabled={profileData?.has2FA || false}
+            onStatusChange={(status) => {
+              // Update the profile data
+              if (profileData) {
+                setProfileData({
+                  ...profileData,
+                  has2FA: status
+                });
+              }
+            }}
+          />
+        )}
         <Separator />
         <Button onClick={() => setIsEditing(true)} disabled={isEditing}>
           <Edit className="mr-2 h-4 w-4" />

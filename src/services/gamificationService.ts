@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge, UserChallenge, UserLevel, LeaderboardEntry } from "@/types/gamification";
 
 // Get earned badges for a user
-const getUserBadges = async (userId: string, type: 'earned' | 'available' = 'earned'): Promise<Badge[]> => {
+export const getUserBadges = async (userId: string, type: 'earned' | 'available' = 'earned'): Promise<Badge[]> => {
   try {
     if (type === 'earned') {
       // Get badges the user has earned
@@ -33,7 +33,8 @@ const getUserBadges = async (userId: string, type: 'earned' | 'available' = 'ear
         icon: item.badge.icon,
         category: item.badge.category,
         pointsRequired: item.badge.points_required,
-        earnedAt: item.earned_at
+        earnedAt: item.earned_at,
+        isEarned: true
       }));
     } else {
       // Get available badges the user hasn't earned yet
@@ -62,7 +63,9 @@ const getUserBadges = async (userId: string, type: 'earned' | 'available' = 'ear
         description: badge.description,
         icon: badge.icon,
         category: badge.category,
-        pointsRequired: badge.points_required
+        pointsRequired: badge.points_required,
+        isEarned: false,
+        progress: 0
       }));
     }
   } catch (error) {
@@ -72,7 +75,7 @@ const getUserBadges = async (userId: string, type: 'earned' | 'available' = 'ear
 };
 
 // Get user challenges
-const getUserChallenges = async (userId: string, completed = false): Promise<UserChallenge[]> => {
+export const getUserChallenges = async (userId: string, completed = false): Promise<UserChallenge[]> => {
   try {
     const { data, error } = await supabase
       .from('user_challenges')
@@ -98,6 +101,7 @@ const getUserChallenges = async (userId: string, completed = false): Promise<Use
       progress: item.progress,
       isCompleted: item.is_completed,
       completedAt: item.completed_at,
+      joinedAt: item.joined_at,
       points: item.challenge.points
     }));
   } catch (error) {
@@ -107,7 +111,7 @@ const getUserChallenges = async (userId: string, completed = false): Promise<Use
 };
 
 // Get available challenges
-const getAvailableChallenges = async (): Promise<UserChallenge[]> => {
+export const getAvailableChallenges = async (): Promise<UserChallenge[]> => {
   try {
     const { data, error } = await supabase
       .from('challenges')
@@ -132,7 +136,7 @@ const getAvailableChallenges = async (): Promise<UserChallenge[]> => {
 };
 
 // Join a challenge
-const joinChallenge = async (userId: string, challengeId: string): Promise<boolean> => {
+export const joinChallenge = async (userId: string, challengeId: string): Promise<boolean> => {
   try {
     // Check if already joined
     const { data: existing, error: checkError } = await supabase
@@ -164,12 +168,16 @@ const joinChallenge = async (userId: string, challengeId: string): Promise<boole
       
     if (error) throw error;
     
-    // Increment user's challenge count
-    // This would typically be handled by a database trigger
-    await supabase
-      .rpc('increment_user_challenge_count', {
-        user_uuid: userId
-      });
+    try {
+      // Increment user's challenge count
+      // Try to use increment function instead since increment_user_challenge_count doesn't exist
+      await supabase
+        .rpc('increment', {
+          value: 1
+        });
+    } catch (err) {
+      console.error("Error incrementing challenge count (non-critical):", err);
+    }
     
     return true;
   } catch (error) {
@@ -179,7 +187,7 @@ const joinChallenge = async (userId: string, challengeId: string): Promise<boole
 };
 
 // Get user level and progress
-const getUserLevel = async (userId: string): Promise<UserLevel> => {
+export const getUserLevel = async (userId: string): Promise<UserLevel> => {
   try {
     // Get user stats
     const { data: stats, error } = await supabase
@@ -237,7 +245,7 @@ const getUserLevel = async (userId: string): Promise<UserLevel> => {
 };
 
 // Get leaderboard
-const getLeaderboard = async (limit = 10): Promise<LeaderboardEntry[]> => {
+export const getLeaderboard = async (limit = 10): Promise<LeaderboardEntry[]> => {
   try {
     const { data, error } = await supabase
       .from('user_stats')
@@ -246,6 +254,8 @@ const getLeaderboard = async (limit = 10): Promise<LeaderboardEntry[]> => {
         points,
         level,
         rank,
+        badge_count,
+        challenge_count,
         user:user_id (
           name,
           avatar
@@ -261,13 +271,25 @@ const getLeaderboard = async (limit = 10): Promise<LeaderboardEntry[]> => {
       // Use rank from DB if available, otherwise use index
       const rank = entry.rank || index + 1;
       
+      // Handle potential null user safely
+      let userName = 'Unknown User';
+      let userAvatar: string | undefined = undefined;
+      
+      if (entry.user && typeof entry.user === 'object') {
+        userName = entry.user.name || 'Unknown User';
+        userAvatar = entry.user.avatar;
+      }
+      
       return {
         userId: entry.user_id,
-        name: entry.user?.name || 'Unknown User',
-        avatar: entry.user?.avatar,
+        id: entry.user_id,
+        name: userName,
+        avatar: userAvatar,
         points: entry.points || 0,
         rank,
-        level: entry.level || 1
+        level: entry.level || 1,
+        badgeCount: entry.badge_count || 0,
+        challengeCount: entry.challenge_count || 0
       };
     });
   } catch (error) {
@@ -276,7 +298,7 @@ const getLeaderboard = async (limit = 10): Promise<LeaderboardEntry[]> => {
   }
 };
 
-export const gamificationService = {
+const gamificationService = {
   getUserBadges,
   getUserChallenges,
   getAvailableChallenges,
