@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -73,7 +74,8 @@ const profileFormSchema = z.object({
   isAvailable: z.boolean().default(true).optional(),
 })
 
-interface ProfileData = z.infer<typeof profileFormSchema> & {
+// Fixed syntax: Declare type instead of interface with assignment
+type ProfileData = z.infer<typeof profileFormSchema> & {
   has2FA?: boolean;
 }
 
