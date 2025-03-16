@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Calendar, Trophy, Clock, XCircle } from 'lucide-react';
 import { Challenge, UserChallenge } from '@/types/gamification';
-import { getUserChallenges, getAvailableChallenges, joinChallenge } from '@/services/gamificationService';
+import gamificationService from '@/services/gamificationService';
 import { useToast } from '@/components/ui/use-toast';
 import { format, isAfter } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
@@ -19,20 +19,20 @@ const ChallengesSection: React.FC<ChallengesSectionProps> = ({ type }) => {
   const [challenges, setChallenges] = useState<(Challenge | UserChallenge)[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const auth = useAuth();
   
   useEffect(() => {
     const fetchChallenges = async () => {
-      if (!user) return;
+      if (!auth.user) return;
       
       try {
         setIsLoading(true);
         
         let data;
         if (type === 'available') {
-          data = await getAvailableChallenges();
+          data = await gamificationService.getAvailableChallenges();
         } else {
-          data = await getUserChallenges(user.id, type === 'completed');
+          data = await gamificationService.getUserChallenges(auth.user.id, type === 'completed');
         }
         
         setChallenges(data || []);
@@ -49,13 +49,13 @@ const ChallengesSection: React.FC<ChallengesSectionProps> = ({ type }) => {
     };
     
     fetchChallenges();
-  }, [type, user, toast]);
+  }, [type, auth.user, toast]);
   
   const handleJoinChallenge = async (challengeId: string) => {
-    if (!user) return;
+    if (!auth.user) return;
     
     try {
-      const userChallenge = await joinChallenge(user.id, challengeId);
+      await gamificationService.joinChallenge(auth.user.id, challengeId);
       
       // Update the challenges list
       setChallenges(prev => 
@@ -197,9 +197,6 @@ const ChallengesSection: React.FC<ChallengesSectionProps> = ({ type }) => {
         
         // For user challenges (active or completed)
         const userChallenge = challenge as UserChallenge;
-        const challengeData = 'challenge' in userChallenge && userChallenge.challenge 
-          ? userChallenge.challenge 
-          : { title: 'Challenge', description: '', points: 0 };
         
         return (
           <Card key={userChallenge.id} className="relative overflow-hidden">
@@ -214,13 +211,13 @@ const ChallengesSection: React.FC<ChallengesSectionProps> = ({ type }) => {
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center">
                 <Trophy className="h-5 w-5 text-primary mr-2" />
-                {challengeData.title}
+                {userChallenge.title}
               </CardTitle>
             </CardHeader>
             
             <CardContent>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                {challengeData.description}
+                {userChallenge.description}
               </p>
               
               <div className="mb-4">
@@ -240,13 +237,13 @@ const ChallengesSection: React.FC<ChallengesSectionProps> = ({ type }) => {
                 ) : (
                   <div className="flex items-center">
                     <Calendar className="h-3.5 w-3.5 mr-1" />
-                    Joined on {format(new Date(userChallenge.joinedAt), 'MMM d, yyyy')}
+                    Joined on {format(new Date(userChallenge.joinedAt || Date.now()), 'MMM d, yyyy')}
                   </div>
                 )}
                 
                 <div className="flex items-center">
                   <Trophy className="h-3.5 w-3.5 mr-1 text-yellow-500" />
-                  {challengeData.points} pts
+                  {userChallenge.points} pts
                 </div>
               </div>
             </CardContent>

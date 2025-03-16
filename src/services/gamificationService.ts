@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Badge, UserChallenge, UserLevel, LeaderboardEntry } from "@/types/gamification";
 
@@ -169,8 +168,7 @@ export const joinChallenge = async (userId: string, challengeId: string): Promis
     if (error) throw error;
     
     try {
-      // Increment user's challenge count
-      // Try to use increment function instead since increment_user_challenge_count doesn't exist
+      // Increment user's challenge count using the available increment function
       await supabase
         .rpc('increment', {
           value: 1

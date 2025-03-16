@@ -1,19 +1,10 @@
 
 import React, { useState } from 'react';
-import { Shell } from '@/components/ui/shell';
-import { PageTitle } from '@/components/ui/page-title';
 import Events from '@/components/Events';
 import { useQuery } from '@tanstack/react-query';
 import eventService from '@/services/eventService';
-import { Helmet } from 'react-helmet';
 import { Spinner } from '@/components/ui/spinner';
 import { EventFilter } from '@/types/api';
-
-// Import these packages at the top level to fix the module not found errors
-// We'll add them as comments here, but they should be installed in the project
-// import { Shell } from '@/components/ui/shell';
-// import { PageTitle } from '@/components/ui/page-title';
-// import { Helmet } from 'react-helmet';
 
 const EventsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);

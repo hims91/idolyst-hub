@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, LoginCredentials, RegisterData } from '@/services/api/types';
 import { apiService } from '@/services/api';
@@ -12,6 +11,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   authStatus: AuthStatus;
+  isValidSession: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
@@ -82,6 +82,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     loadStoredSession();
   }, []);
+
+  // Computed property for isValidSession
+  const isValidSession = authStatus === 'authenticated' && !!user;
 
   const saveSession = useCallback((userData: User) => {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
@@ -354,6 +357,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user, 
         isLoading, 
         authStatus,
+        isValidSession,
         login, 
         register, 
         logout, 

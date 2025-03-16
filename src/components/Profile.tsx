@@ -88,7 +88,7 @@ const Profile: React.FC<ProfileProps> = ({ userId }) => {
   const { data: userLevel, isLoading: levelLoading } = useQuery({
     queryKey: ['user-level', userId],
     queryFn: () => gamificationService.getUserLevel(userId),
-    enabled: !!userId && !!auth?.isValidSession,
+    enabled: !!userId && auth.isValidSession,
   });
 
   const form = useForm<ProfileData>({
@@ -228,7 +228,7 @@ const Profile: React.FC<ProfileProps> = ({ userId }) => {
         </Accordion>
         <Separator />
         {/* 2FA Authentication */}
-        {auth?.user?.id && (
+        {auth.user?.id && (
           <TwoFactorAuth 
             userId={auth.user.id}
             is2FAEnabled={profileData?.has2FA || false}

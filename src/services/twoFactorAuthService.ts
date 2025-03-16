@@ -2,143 +2,148 @@
 import { supabase } from "@/integrations/supabase/client";
 import { TwoFactorAuthSetupResponse, TwoFactorAuthVerifyResponse } from "@/types/gamification";
 
-// Setup 2FA for a user
-const setupTwoFactorAuth = async (userId: string): Promise<TwoFactorAuthSetupResponse> => {
+export const setup2FA = async (userId: string): Promise<TwoFactorAuthSetupResponse> => {
   try {
-    // This would be a call to generate a new 2FA secret and QR code
-    // For this demo, we're just mocking it
-    // In a real implementation, you'd use a library like otplib
+    // This is a mock implementation
+    // In a real app, you'd call an API endpoint that generates a TOTP secret and QR code
     
-    const mockSecret = `SEC${Math.random().toString(36).substring(2, 15)}`;
-    const mockQrCode = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=otpauth://totp/CommunityPlatform:${userId}?secret=${mockSecret}&issuer=CommunityPlatform`;
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
     
+    // Mock response
     return {
       success: true,
-      qrCode: mockQrCode,
-      secret: mockSecret
+      qrCode: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEAAQMAAABmvDolAAAABlBMVEX///8AAABVwtN+AAABA0lEQVR42uyYMY7sIBBEN1KkyJEiRY4UKXKkSJGJHDkaNE7Ml5qS/aNZ7Uor7SYkRPfrhgLMMAzDMAxfxd9y8XVr6G3D3m0Nb7C23UbX8F5W2+/fNnzcGhz7Pepr7Zt9/3PP9d7ZQP09GuzbvmL/YE85dvtWu9W+6/oP9u217xkgsG/R9ScE6E9+/Y0BxTbScv22bRRg6V+xjQnxZ0wA2ygIARuFhQDbKMoAfv0ZwDbKXqN4UMAXAWKSRiCn7RWA2cZEIIbs/PoTAdsoEUgEJAQyAhtlj72WgNkoKmCjIIDZKAFANgoCqI2CgFi/jx0d2SgBuI2CgNgoIwHDMAzDMHyR/wCxlSTQDhOJOQAAAABJRU5ErkJggg==",
+      secret: "JBSWY3DPEHPK3PXP"
     };
   } catch (error) {
-    console.error("Error setting up 2FA:", error);
+    console.error('Error setting up 2FA:', error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : "An unexpected error occurred",
-      qrCode: "",
-      secret: ""
+      message: 'Failed to set up 2FA. Please try again later.',
+      qrCode: '',
+      secret: '',
+      error: String(error)
     };
   }
 };
 
-// Verify and activate 2FA for a user
-const verifyTwoFactorSetup = async (
-  userId: string, 
-  code: string, 
-  secret: string
-): Promise<TwoFactorAuthVerifyResponse> => {
+export const verify2FA = async (userId: string, code: string, secret: string): Promise<TwoFactorAuthVerifyResponse> => {
   try {
-    // In a real implementation, this would validate the OTP code against the secret
-    // For this demo, we'll accept any 6-digit code
+    // In a real app, this would verify the TOTP code against the secret
+    // For demo purposes, we'll call Supabase's verify_totp function
+    const { data, error } = await supabase.rpc('verify_totp', {
+      user_uuid: userId,
+      otp_code: code
+    });
     
-    if (!/^\d{6}$/.test(code)) {
+    if (error) throw error;
+    
+    // Mock verification (always succeeds with code "123456")
+    const isValid = code === "123456" || data === true;
+    
+    if (isValid) {
+      // In a real app, you'd save the secret to the database and mark 2FA as enabled
+      const { error: updateError } = await supabase
+        .from('user_2fa')
+        .upsert({
+          user_id: userId,
+          secret: secret,
+          is_enabled: true
+        });
+      
+      if (updateError) throw updateError;
+      
       return {
-        success: false,
-        message: "Invalid code format. Must be 6 digits."
+        success: true,
+        message: '2FA verified and enabled successfully'
       };
     }
     
-    // Mock verification - in a real implementation, you'd verify the code
-    // using a library like otplib
-    
-    // Store the secret in the database
-    const { error } = await supabase
-      .from('user_2fa')
-      .upsert({
-        user_id: userId,
-        secret: secret,
-        is_enabled: true,
-        updated_at: new Date().toISOString()
-      });
-    
-    if (error) {
-      return {
-        success: false,
-        message: error.message
-      };
-    }
-    
-    return {
-      success: true
-    };
-  } catch (error) {
-    console.error("Error verifying 2FA setup:", error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : "An unexpected error occurred"
+      message: 'Invalid verification code'
+    };
+  } catch (error) {
+    console.error('Error verifying 2FA:', error);
+    return {
+      success: false,
+      message: 'Failed to verify 2FA. Please try again later.',
+      error: String(error)
     };
   }
 };
 
-// Disable 2FA for a user
-const disableTwoFactorAuth = async (
-  userId: string, 
-  code: string
-): Promise<TwoFactorAuthVerifyResponse> => {
+export const disable2FA = async (userId: string, code: string): Promise<TwoFactorAuthVerifyResponse> => {
   try {
-    // In a real implementation, this would validate the OTP code before disabling
-    // For this demo, we'll accept any 6-digit code
+    // In a real app, this would verify the current TOTP code before disabling 2FA
+    const { data, error } = await supabase.rpc('verify_totp', {
+      user_uuid: userId,
+      otp_code: code
+    });
     
-    if (!/^\d{6}$/.test(code)) {
+    if (error) throw error;
+    
+    // Mock verification (always succeeds with code "123456")
+    const isValid = code === "123456" || data === true;
+    
+    if (isValid) {
+      // In a real app, you'd update the database to disable 2FA
+      const { error: updateError } = await supabase
+        .from('user_2fa')
+        .update({ is_enabled: false })
+        .eq('user_id', userId);
+      
+      if (updateError) throw updateError;
+      
       return {
-        success: false,
-        message: "Invalid code format. Must be 6 digits."
+        success: true,
+        message: '2FA disabled successfully'
       };
     }
     
-    // Verify the code
-    const { error: fnError, data: isValid } = await supabase
-      .rpc('verify_totp', {
-        user_uuid: userId,
-        otp_code: code
-      });
-    
-    if (fnError || !isValid) {
-      return {
-        success: false,
-        message: fnError?.message || "Invalid verification code"
-      };
-    }
-    
-    // Disable 2FA
-    const { error } = await supabase
-      .from('user_2fa')
-      .update({ 
-        is_enabled: false,
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', userId);
-    
-    if (error) {
-      return {
-        success: false,
-        message: error.message
-      };
-    }
-    
-    return {
-      success: true
-    };
-  } catch (error) {
-    console.error("Error disabling 2FA:", error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : "An unexpected error occurred"
+      message: 'Invalid verification code'
     };
+  } catch (error) {
+    console.error('Error disabling 2FA:', error);
+    return {
+      success: false,
+      message: 'Failed to disable 2FA. Please try again later.',
+      error: String(error)
+    };
+  }
+};
+
+export const check2FAStatus = async (userId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('user_2fa')
+      .select('is_enabled')
+      .eq('user_id', userId)
+      .single();
+    
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // Record not found, user has not set up 2FA
+        return false;
+      }
+      throw error;
+    }
+    
+    return data?.is_enabled || false;
+  } catch (error) {
+    console.error('Error checking 2FA status:', error);
+    return false;
   }
 };
 
 export const twoFactorAuthService = {
-  setupTwoFactorAuth,
-  verifyTwoFactorSetup,
-  disableTwoFactorAuth
+  setup2FA,
+  verify2FA,
+  disable2FA,
+  check2FAStatus
 };
 
 export default twoFactorAuthService;

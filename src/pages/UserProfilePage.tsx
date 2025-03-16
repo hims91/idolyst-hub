@@ -2,153 +2,149 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { useAuthSession } from '@/hooks/useAuthSession';
-import { getUserProfile, getUserPosts } from '@/services/userService';
-import gamificationService from '@/services/gamificationService';
-import PageTransition from '@/components/layout/PageTransition';
-import Header from '@/components/layout/Header';
-import { Spinner } from '@/components/ui/spinner';
-import UserFollowModal from '@/components/user/UserFollowModal';
+import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import UserProfile from '@/components/user/UserProfile';
+import UserFollowModal from '@/components/user/UserFollowModal';
+import { getUserProfile, getUserPosts } from '@/services/userService';
+import gamificationService from '@/services/gamificationService';
+import userService from '@/services/api/user';
 
 const UserProfilePage = () => {
-  const { id: userId } = useParams<{ id: string }>();
+  const { userId } = useParams<{ userId: string }>();
+  const auth = useAuth();
   const { toast } = useToast();
-  const auth = useAuthSession();
-  const isAuthenticated = Boolean(auth?.isValidSession);
-  const [followModalOpen, setFollowModalOpen] = useState(false);
-  const [followModalType, setFollowModalType] = useState<'followers' | 'following'>('followers');
+  const [followModal, setFollowModal] = useState<{
+    isOpen: boolean;
+    type: 'followers' | 'following';
+  }>({
+    isOpen: false,
+    type: 'followers',
+  });
 
-  const { data: userProfile, isLoading: profileLoading, refetch: refetchProfile } = useQuery({
-    queryKey: ['user-profile', userId],
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: ['userProfile', userId],
     queryFn: () => getUserProfile(userId || ''),
     enabled: !!userId,
   });
 
-  const { data: userPosts, isLoading: postsLoading } = useQuery({
-    queryKey: ['user-posts', userId],
+  const { data: posts, isLoading: postsLoading } = useQuery({
+    queryKey: ['userPosts', userId],
     queryFn: () => getUserPosts(userId || ''),
     enabled: !!userId,
   });
 
   const { data: userLevel, isLoading: levelLoading } = useQuery({
-    queryKey: ['user-level', userId],
+    queryKey: ['userLevel', userId],
     queryFn: () => gamificationService.getUserLevel(userId || ''),
-    enabled: !!userId && !!isAuthenticated,
+    enabled: !!userId,
   });
 
-  const { data: userBadges, isLoading: badgesLoading } = useQuery({
-    queryKey: ['user-badges', userId],
+  const { data: badges, isLoading: badgesLoading } = useQuery({
+    queryKey: ['userBadges', userId],
     queryFn: () => gamificationService.getUserBadges(userId || ''),
-    enabled: !!userId && !!isAuthenticated,
+    enabled: !!userId,
   });
 
-  const isLoading = profileLoading || postsLoading || levelLoading || badgesLoading;
+  const isOwnProfile = auth.user?.id === userId;
 
-  const handleFollowUser = async () => {
-    if (!isAuthenticated) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to follow users",
-        variant: "destructive",
-      });
-      return;
-    }
-
+  const handleUnfollow = async () => {
+    if (!userId || !auth.user) return;
+    
     try {
-      if (userProfile?.isFollowing) {
-        await unfollowUser(userId || '');
-        toast({
-          title: "Unfollowed",
-          description: `You no longer follow ${userProfile.name}`,
-        });
-      } else {
-        await followUser(userId || '');
-        toast({
-          title: "Following",
-          description: `You are now following ${userProfile?.name}`,
-        });
-      }
-      refetchProfile();
-    } catch (error) {
-      console.error("Error following/unfollowing user:", error);
+      await userService.unfollowUser(userId);
+      
       toast({
-        title: "Error",
-        description: "Failed to update follow status",
-        variant: "destructive",
+        title: 'Unfollowed successfully',
+        description: 'You are no longer following this user',
+      });
+      
+      // Invalidate queries to refresh data
+      // queryClient.invalidateQueries(['userProfile', userId]);
+    } catch (error) {
+      console.error('Error unfollowing user:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to unfollow user. Please try again.',
       });
     }
   };
 
-  const openFollowModal = (type: 'followers' | 'following') => {
-    setFollowModalType(type);
-    setFollowModalOpen(true);
+  const handleFollow = async () => {
+    if (!userId || !auth.user) return;
+    
+    try {
+      await userService.followUser(userId);
+      
+      toast({
+        title: 'Followed successfully',
+        description: 'You are now following this user',
+      });
+      
+      // Invalidate queries to refresh data
+      // queryClient.invalidateQueries(['userProfile', userId]);
+    } catch (error) {
+      console.error('Error following user:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to follow user. Please try again.',
+      });
+    }
   };
 
-  if (isLoading) {
-    return (
-      <PageTransition>
-        <div className="min-h-screen flex flex-col">
-          <Header title="User Profile" />
-          <main className="flex-1 container py-6 max-w-6xl">
-            <div className="flex justify-center items-center h-64">
-              <Spinner size="lg" />
-            </div>
-          </main>
-        </div>
-      </PageTransition>
-    );
+  const handleFollowersClick = () => {
+    setFollowModal({
+      isOpen: true,
+      type: 'followers',
+    });
+  };
+
+  const handleFollowingClick = () => {
+    setFollowModal({
+      isOpen: true,
+      type: 'following',
+    });
+  };
+
+  const closeModal = () => {
+    setFollowModal({
+      ...followModal,
+      isOpen: false,
+    });
+  };
+
+  if (profileLoading || postsLoading || levelLoading || badgesLoading) {
+    return <div>Loading profile...</div>;
   }
 
-  if (!userProfile) {
-    return (
-      <PageTransition>
-        <div className="min-h-screen flex flex-col">
-          <Header title="User Not Found" />
-          <main className="flex-1 container py-6 max-w-6xl">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold">User Not Found</h2>
-              <p className="mt-2">The user you're looking for doesn't exist or has been removed.</p>
-            </div>
-          </main>
-        </div>
-      </PageTransition>
-    );
+  if (!profile) {
+    return <div>User not found</div>;
   }
-
-  const isOwnProfile = auth?.user?.id === userProfile.id;
 
   return (
-    <PageTransition>
-      <div className="min-h-screen flex flex-col">
-        <Header title={`${userProfile.name}'s Profile`} />
-        
-        <main className="flex-1 container py-6 max-w-6xl">
-          <UserProfile 
-            profile={userProfile}
-            posts={userPosts || []}
-            userLevel={userLevel}
-            badges={userBadges || []}
-            isOwnProfile={isOwnProfile}
-            onFollow={handleFollowUser}
-            onUnfollow={handleFollowUser}
-            onFollowersClick={() => openFollowModal('followers')}
-            onFollowingClick={() => openFollowModal('following')}
-          />
-        </main>
-      </div>
-      
-      {/* Followers/Following Modal */}
-      {followModalOpen && (
+    <div className="container mx-auto px-4 py-8">
+      <UserProfile
+        profile={profile}
+        posts={posts || []}
+        userLevel={userLevel || { level: 1, title: 'Newbie', pointsRequired: 0, pointsToNextLevel: 100, progressPercentage: 0 }}
+        badges={badges || []}
+        isOwnProfile={isOwnProfile}
+        onFollow={handleFollow}
+        onUnfollow={handleUnfollow}
+        onFollowersClick={handleFollowersClick}
+        onFollowingClick={handleFollowingClick}
+      />
+
+      {userId && auth.user && (
         <UserFollowModal
-          userId={userId || ''}
-          isOpen={followModalOpen}
-          onClose={() => setFollowModalOpen(false)}
-          type={followModalType}
+          userId={userId}
+          isOpen={followModal.isOpen}
+          onClose={closeModal}
         />
       )}
-    </PageTransition>
+    </div>
   );
 };
 

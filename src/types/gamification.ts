@@ -4,11 +4,13 @@ export interface TwoFactorAuthSetupResponse {
   message?: string;
   qrCode: string;
   secret: string;
+  error?: string;
 }
 
 export interface TwoFactorAuthVerifyResponse {
   success: boolean;
   message?: string;
+  error?: string;
 }
 
 export interface UserLevel {
@@ -28,6 +30,7 @@ export interface UserChallenge {
   completedAt?: string;
   joinedAt?: string;
   points: number;
+  challenge?: Challenge;
 }
 
 export interface Challenge {
@@ -37,6 +40,8 @@ export interface Challenge {
   points: number;
   requirements?: string;
   isActive: boolean;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface Badge {
@@ -53,14 +58,14 @@ export interface Badge {
 
 export interface LeaderboardEntry {
   userId: string;
-  id?: string;
+  id: string;
   name: string;
   avatar?: string;
   points: number;
   rank: number;
   level: number;
-  badgeCount?: number;
-  challengeCount?: number;
+  badgeCount: number;
+  challengeCount: number;
 }
 
 export interface PostData {
