@@ -8,3 +8,11 @@ import { type ThemeProviderProps } from "next-themes/dist/types"
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   return <NextThemesProvider {...props}>{children}</NextThemesProvider>
 }
+
+export function useTheme() {
+  return {
+    theme: "light",
+    setTheme: (theme: string) => console.log(`Theme set to ${theme}`),
+    themes: ["light", "dark", "system"]
+  }
+}

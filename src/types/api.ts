@@ -1,3 +1,4 @@
+
 // User types
 export interface User {
   id: string;
@@ -36,6 +37,11 @@ export interface Post {
   isUpvoted: boolean;
   isDownvoted: boolean;
   isBookmarked: boolean;
+  tags?: string[];
+  imageUrl?: string;
+  views?: number;
+  shares?: number;
+  isSaved?: boolean;
 }
 
 export interface Comment {
@@ -107,15 +113,55 @@ export interface EmailSettingsForm {
   notificationEmails: boolean;
   weeklyDigest: boolean;
   newFollowerAlert: boolean;
+  smtpHost?: string;
+  smtpPort?: string;
+  smtpUser?: string;
+  smtpPassword?: string;
+  smtpFromEmail?: string;
+  smtpFromName?: string;
+  enableEmailNotifications?: boolean;
 }
 
 // Event types
+export interface Event {
+  id: string;
+  title: string;
+  description: string;
+  location?: string;
+  isVirtual: boolean;
+  startDate: string;
+  endDate: string;
+  category?: string;
+  imageUrl?: string;
+  maxAttendees?: number;
+  currentAttendees: number;
+  organizer: User;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  isRegistered?: boolean;
+}
+
+export interface EventWithDetails extends Event {
+  attendees?: User[];
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  currentPage: number;
+  totalPages: number;
+  total: number;
+}
+
 export interface EventFilter {
   category?: string;
   location?: string;
   dateRange?: [Date | null, Date | null];
   isVirtual?: boolean;
   searchQuery?: string;
+  page?: number;
+  status?: string;
+  query?: string;
 }
 
 export interface EventFormData {

@@ -52,3 +52,15 @@ export interface UserLevel {
   pointsToNextLevel: number;
   progressPercentage: number;
 }
+
+export interface TwoFactorAuthSetupResponse {
+  qrCode: string;
+  secret: string;
+  success: boolean;
+  message?: string;
+}
+
+export interface TwoFactorAuthVerifyResponse {
+  success: boolean;
+  message?: string;
+}
