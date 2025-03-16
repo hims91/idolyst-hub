@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -51,6 +50,10 @@ import {
 import gamificationService from '@/services/gamificationService';
 import TwoFactorAuth from '@/components/auth/TwoFactorAuth';
 
+interface ProfileProps {
+  userId: string;
+}
+
 const profileFormSchema = z.object({
   name: z.string().min(2, {
     message: "Name must be at least 2 characters.",
@@ -70,11 +73,7 @@ const profileFormSchema = z.object({
   isAvailable: z.boolean().default(true).optional(),
 })
 
-interface ProfileProps {
-  userId: string;
-}
-
-type ProfileData = z.infer<typeof profileFormSchema> & {
+interface ProfileData = z.infer<typeof profileFormSchema> & {
   has2FA?: boolean;
 }
 

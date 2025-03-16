@@ -1,13 +1,12 @@
 
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import userService from '@/services/api/user';
 import { User } from '@/types/api';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import userService from '@/services/api/user';
+import { Spinner } from '@/components/ui/spinner';
 
 export interface UserFollowModalProps {
   userId: string;
@@ -17,108 +16,120 @@ export interface UserFollowModalProps {
 
 const UserFollowModal: React.FC<UserFollowModalProps> = ({ userId, isOpen, onClose }) => {
   const [activeTab, setActiveTab] = useState<'followers' | 'following'>('followers');
-  
-  const { data: followers, isLoading: followersLoading } = useQuery({
-    queryKey: ['userFollowers', userId],
-    queryFn: () => userService.getUserFollowers(userId),
-    enabled: isOpen && activeTab === 'followers'
-  });
-  
-  const { data: following, isLoading: followingLoading } = useQuery({
-    queryKey: ['userFollowing', userId],
-    queryFn: () => userService.getUserFollowing(userId),
-    enabled: isOpen && activeTab === 'following'
-  });
-  
-  const handleFollow = async (targetId: string) => {
-    await userService.followUser(targetId);
-  };
-  
-  const handleUnfollow = async (targetId: string) => {
-    await userService.unfollowUser(targetId);
-  };
-  
-  const renderUserList = (users: User[] | undefined, isLoading: boolean) => {
-    if (isLoading) {
-      return (
-        <div className="space-y-4 py-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center space-x-4 animate-pulse">
-              <div className="h-10 w-10 rounded-full bg-gray-200"></div>
-              <div className="space-y-2 flex-1">
-                <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/4"></div>
-              </div>
-              <div className="h-8 w-20 bg-gray-200 rounded"></div>
-            </div>
-          ))}
-        </div>
-      );
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadUsers();
     }
-    
-    if (!users || users.length === 0) {
-      return (
-        <div className="text-center py-8 text-gray-500">
-          No {activeTab} found
-        </div>
-      );
+  }, [isOpen, activeTab]);
+
+  const loadUsers = async () => {
+    setLoading(true);
+    try {
+      let data: User[];
+      if (activeTab === 'followers') {
+        data = await userService.getUserFollowers(userId);
+      } else {
+        data = await userService.getUserFollowing(userId);
+      }
+      setUsers(data || []);
+    } catch (error) {
+      console.error(`Error fetching ${activeTab}:`, error);
+      setUsers([]);
+    } finally {
+      setLoading(false);
     }
-    
-    return (
-      <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-        {users.map((user) => (
-          <div key={user.id} className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Avatar>
-                <AvatarImage src={user.avatar} />
-                <AvatarFallback>{user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div>
-                <div className="font-medium">{user.name}</div>
-                {user.role && (
-                  <Badge variant="outline" className="text-xs">
-                    {user.role}
-                  </Badge>
-                )}
-              </div>
-            </div>
-            
-            {user.id !== userId && (
-              <Button 
-                variant={user.isFollowing ? "outline" : "default"} 
-                size="sm"
-                onClick={() => user.isFollowing ? handleUnfollow(user.id) : handleFollow(user.id)}
-              >
-                {user.isFollowing ? "Unfollow" : "Follow"}
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
-    );
   };
-  
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as 'followers' | 'following');
+  };
+
+  const handleFollowToggle = async (targetUserId: string, isFollowing: boolean) => {
+    try {
+      if (isFollowing) {
+        await userService.unfollowUser(targetUserId);
+      } else {
+        await userService.followUser(targetUserId);
+      }
+      
+      // Update local state
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.id === targetUserId 
+            ? { ...user, isFollowing: !isFollowing } 
+            : user
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling follow:', error);
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Connections</DialogTitle>
-          <DialogClose />
+          <DialogTitle className="text-center mb-4">
+            {activeTab === 'followers' ? 'Followers' : 'Following'}
+          </DialogTitle>
         </DialogHeader>
         
-        <Tabs defaultValue={activeTab} onValueChange={(value) => setActiveTab(value as 'followers' | 'following')}>
-          <TabsList className="grid w-full grid-cols-2">
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
+          <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="followers">Followers</TabsTrigger>
             <TabsTrigger value="following">Following</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="followers">
-            {renderUserList(followers, followersLoading)}
-          </TabsContent>
-          
-          <TabsContent value="following">
-            {renderUserList(following, followingLoading)}
-          </TabsContent>
+          <div className="px-1">
+            {loading ? (
+              <div className="flex justify-center py-8">
+                <Spinner size="lg" />
+              </div>
+            ) : users.length === 0 ? (
+              <p className="text-center text-gray-500 py-8">
+                {activeTab === 'followers' 
+                  ? 'No followers yet' 
+                  : 'Not following anyone yet'}
+              </p>
+            ) : (
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                {users.map(user => (
+                  <div 
+                    key={user.id} 
+                    className="flex items-center justify-between border-b pb-4"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={user.avatar} />
+                        <AvatarFallback>
+                          {user.name?.charAt(0) || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{user.name}</p>
+                        {user.bio && (
+                          <p className="text-sm text-gray-500 line-clamp-1">
+                            {user.bio}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <Button
+                      variant={user.isFollowing ? "outline" : "default"}
+                      size="sm"
+                      onClick={() => handleFollowToggle(user.id, !!user.isFollowing)}
+                    >
+                      {user.isFollowing ? "Unfollow" : "Follow"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </Tabs>
       </DialogContent>
     </Dialog>

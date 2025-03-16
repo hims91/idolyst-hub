@@ -266,25 +266,14 @@ export const getLeaderboard = async (limit = 10): Promise<LeaderboardEntry[]> =>
     
     // Format the response
     return data.map((entry, index) => {
-      // Use rank from DB if available, otherwise use index
-      const rank = entry.rank || index + 1;
-      
-      // Handle potential null user safely
-      let userName = 'Unknown User';
-      let userAvatar: string | undefined = undefined;
-      
-      if (entry.user && typeof entry.user === 'object') {
-        userName = entry.user.name || 'Unknown User';
-        userAvatar = entry.user.avatar;
-      }
-      
+      const user = entry.user || { name: 'Unknown', avatar: null };
       return {
         userId: entry.user_id,
         id: entry.user_id,
-        name: userName,
-        avatar: userAvatar,
+        name: user?.name || 'Unknown User',
+        avatar: user?.avatar || undefined,
         points: entry.points || 0,
-        rank,
+        rank: index + 1,
         level: entry.level || 1,
         badgeCount: entry.badge_count || 0,
         challengeCount: entry.challenge_count || 0

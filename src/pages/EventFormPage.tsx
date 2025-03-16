@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -73,7 +72,6 @@ const EventFormPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const isEditMode = !!id;
 
-  // Redirect if not logged in
   if (!user) {
     navigate('/login');
     toast({
@@ -113,12 +111,11 @@ const EventFormPage: React.FC = () => {
       endDate: format(new Date(), 'yyyy-MM-dd'),
       endTime: '21:00',
       category: 'General',
-      maxAttendees: '',
+      maxAttendees: undefined,
       imageUrl: '',
     },
   });
 
-  // Update form with event data when editing
   React.useEffect(() => {
     if (event && isEditMode) {
       const startDate = new Date(event.startDate);
@@ -134,7 +131,7 @@ const EventFormPage: React.FC = () => {
         endDate: format(endDate, 'yyyy-MM-dd'),
         endTime: event.endTime || format(endDate, 'HH:mm'),
         category: event.category || 'General',
-        maxAttendees: event.maxAttendees ? String(event.maxAttendees) : '',
+        maxAttendees: event.maxAttendees,
         imageUrl: event.imageUrl || '',
       });
     }
@@ -148,7 +145,6 @@ const EventFormPage: React.FC = () => {
         description: 'Your event has been successfully created',
       });
       
-      // Send notification to followers
       if (user) {
         notificationService.notifyFollowers(
           user.id,

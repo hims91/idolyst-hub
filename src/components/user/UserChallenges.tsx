@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Tab, Tabs, TabList, TabPanel } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import gamificationService from '@/services/gamificationService';
 import { UserChallenge } from '@/types/gamification';
@@ -49,12 +49,12 @@ const UserChallenges: React.FC<UserChallengesProps> = ({ userId }) => {
   return (
     <div>
       <Tabs defaultValue="active" onValueChange={(val) => setActiveTab(val as 'active' | 'completed')}>
-        <TabList className="mb-4">
-          <Tab value="active">Active Challenges</Tab>
-          <Tab value="completed">Completed</Tab>
-        </TabList>
+        <TabsList className="mb-4">
+          <TabsTrigger value="active">Active Challenges</TabsTrigger>
+          <TabsTrigger value="completed">Completed</TabsTrigger>
+        </TabsList>
         
-        <TabPanel value="active">
+        <TabsContent value="active">
           {challenges.length === 0 ? (
             <div className="text-center p-4 bg-gray-50 rounded-lg">
               <p className="text-gray-500">No active challenges found</p>
@@ -88,9 +88,9 @@ const UserChallenges: React.FC<UserChallengesProps> = ({ userId }) => {
               ))}
             </div>
           )}
-        </TabPanel>
+        </TabsContent>
         
-        <TabPanel value="completed">
+        <TabsContent value="completed">
           {challenges.length === 0 ? (
             <div className="text-center p-4 bg-gray-50 rounded-lg">
               <p className="text-gray-500">No completed challenges found</p>
@@ -102,7 +102,7 @@ const UserChallenges: React.FC<UserChallengesProps> = ({ userId }) => {
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-md">{challenge.title}</CardTitle>
-                      <Badge variant="success">
+                      <Badge>
                         {challenge.points} points earned
                       </Badge>
                     </div>
@@ -117,7 +117,7 @@ const UserChallenges: React.FC<UserChallengesProps> = ({ userId }) => {
               ))}
             </div>
           )}
-        </TabPanel>
+        </TabsContent>
       </Tabs>
     </div>
   );

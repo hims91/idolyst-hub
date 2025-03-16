@@ -1,118 +1,107 @@
+import { supabase } from '@/integrations/supabase/client';
+import { Event, EventWithDetails, EventFilter, EventFormData, User } from '@/types/api';
 
-import { supabase } from "@/integrations/supabase/client";
-import { Event, EventFilter, EventFormData, EventWithDetails, PaginatedResponse } from "@/types/api";
-import { formatTimeAgo } from "@/lib/utils";
-import { format, parseISO, isAfter, isBefore, isEqual } from "date-fns";
+// Helper function to safely access properties from potentially null/error objects
+const safeGet = <T extends object, K extends keyof T>(obj: T | null | undefined | { code?: string }, key: K, defaultValue?: T[K]): T[K] | undefined => {
+  if (!obj || typeof obj !== 'object' || 'code' in obj) {
+    return defaultValue;
+  }
+  return obj[key] !== undefined ? obj[key] : defaultValue;
+};
 
-// Get all events with pagination and filtering
-export const getEvents = async (
-  page: number = 1,
-  pageSize: number = 10,
-  filter: EventFilter = {}
-): Promise<PaginatedResponse<Event>> => {
+// Get all events with pagination and filters
+const getEvents = async (page: number = 1, limit: number = 12, filters: EventFilter = {}): Promise<{ items: Event[]; total: number; currentPage: number; totalPages: number }> => {
   try {
-    const { category, location, dateRange, isVirtual, searchQuery } = filter;
-    const offset = (page - 1) * pageSize;
-
     let query = supabase
       .from('events')
       .select(`
-        *,
+        id,
+        title,
+        description,
+        location,
+        is_virtual,
+        start_date,
+        start_time,
+        end_date,
+        end_time,
+        category,
+        image_url,
+        max_attendees,
+        current_attendees,
+        created_at,
+        updated_at,
+        status,
         organizer:organizer_id (
           id,
           name,
-          avatar
-        )
-      `, { count: 'exact' });
+          avatar,
+          role
+        ),
+        is_registered:event_attendees(user_id)
+      `,
+      { count: 'exact' }
+      )
+      .order('start_date', { ascending: false });
 
     // Apply filters
-    if (category) {
-      query = query.eq('category', category);
+    if (filters.category) {
+      query = query.eq('category', filters.category);
+    }
+    if (filters.location) {
+      query = query.ilike('location', `%${filters.location}%`);
+    }
+    if (filters.isVirtual !== undefined) {
+      query = query.eq('is_virtual', filters.isVirtual);
+    }
+    if (filters.query) {
+      query = query.ilike('title', `%${filters.query}%`);
     }
 
-    if (location) {
-      query = query.ilike('location', `%${location}%`);
-    }
+    // Paginate results
+    const startIndex = (page - 1) * limit;
+    query = query.range(startIndex, startIndex + limit - 1);
 
-    if (dateRange && dateRange[0] && dateRange[1]) {
-      const startDate = dateRange[0].toISOString();
-      const endDate = dateRange[1].toISOString();
-      query = query.gte('start_date', startDate).lte('end_date', endDate);
-    }
-
-    if (isVirtual !== undefined) {
-      query = query.eq('is_virtual', isVirtual);
-    }
-
-    if (searchQuery) {
-      query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
-    }
-
-    // Add pagination
-    const { data, error, count } = await query
-      .order('start_date', { ascending: true })
-      .range(offset, offset + pageSize - 1);
+    const { data: events, error, count } = await query;
 
     if (error) {
       console.error("Error fetching events:", error);
-      return {
-        items: [],
-        total: 0,
-        currentPage: page,
-        totalPages: 0,
-        hasMore: false
-      };
+      throw new Error(error.message);
     }
 
-    const events = data.map(event => {
-      // Create a safe organizer object whether or not the join succeeded
-      const organizer = event.organizer || { 
-        id: event.organizer_id || '',
-        name: 'Unknown',
-        avatar: '' 
-      };
+    const formattedEvents = events.map(event => ({
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      location: event.location || '',
+      isVirtual: event.is_virtual,
+      startDate: event.start_date,
+      startTime: event.start_time,
+      endDate: event.end_date,
+      endTime: event.end_time,
+      category: event.category || 'General',
+      imageUrl: event.image_url || '',
+      maxAttendees: event.max_attendees,
+      currentAttendees: event.current_attendees,
+      organizer: {
+        id: safeGet(event.organizer, 'id', ''),
+        name: safeGet(event.organizer, 'name', 'Unknown'),
+        avatar: safeGet(event.organizer, 'avatar', ''),
+        role: safeGet(event.organizer, 'role', 'member')
+      },
+      createdAt: event.created_at,
+      updatedAt: event.updated_at,
+      isRegistered: !!event.is_registered,
+      status: event.status || 'upcoming' // Fix the missing status property
+    }));
 
-      // If organizer is an error object, create a default organizer
-      if (typeof organizer === 'object' && 'code' in organizer) {
-        organizer.id = event.organizer_id || '';
-        organizer.name = 'Unknown';
-        organizer.avatar = '';
-      }
-
-      return {
-        id: event.id,
-        title: event.title,
-        description: event.description,
-        location: event.location || undefined,
-        isVirtual: event.is_virtual || false,
-        startDate: event.start_date,
-        startTime: format(parseISO(event.start_date), 'HH:mm'),
-        endDate: event.end_date,
-        endTime: format(parseISO(event.end_date), 'HH:mm'),
-        category: event.category || 'General',
-        imageUrl: event.image_url,
-        maxAttendees: event.max_attendees,
-        currentAttendees: event.current_attendees || 0,
-        organizer: {
-          id: organizer.id,
-          name: organizer.name,
-          avatar: organizer.avatar
-        },
-        createdAt: event.created_at,
-        updatedAt: event.updated_at,
-        isRegistered: false // Will be updated by the checkEventRegistration function
-      };
-    });
-
-    // Calculate total pages
-    const totalPages = count ? Math.ceil(count / pageSize) : 0;
+    const totalEvents = count || 0;
+    const totalPages = Math.ceil(totalEvents / limit);
 
     return {
-      items: events,
-      total: count || 0,
+      items: formattedEvents,
+      total: totalEvents,
       currentPage: page,
-      totalPages,
-      hasMore: page < totalPages
+      totalPages: totalPages
     };
   } catch (error) {
     console.error("Error in getEvents:", error);
@@ -121,16 +110,32 @@ export const getEvents = async (
 };
 
 // Get a single event by ID
-export const getEvent = async (eventId: string): Promise<EventWithDetails | null> => {
+const getEvent = async (eventId: string): Promise<EventWithDetails> => {
   try {
-    const { data, error } = await supabase
+    const { data: event, error } = await supabase
       .from('events')
       .select(`
-        *,
+        id,
+        title,
+        description,
+        location,
+        is_virtual,
+        start_date,
+        start_time,
+        end_date,
+        end_time,
+        category,
+        image_url,
+        max_attendees,
+        current_attendees,
+        created_at,
+        updated_at,
+        status,
         organizer:organizer_id (
           id,
           name,
-          avatar
+          avatar,
+          role
         )
       `)
       .eq('id', eventId)
@@ -138,81 +143,32 @@ export const getEvent = async (eventId: string): Promise<EventWithDetails | null
 
     if (error) {
       console.error("Error fetching event:", error);
-      return null;
-    }
-
-    if (!data) {
-      return null;
-    }
-
-    // Create a safe organizer object
-    const organizer = data.organizer || { 
-      id: data.organizer_id || '',
-      name: 'Unknown',
-      avatar: '' 
-    };
-
-    // If organizer is an error object, create a default organizer
-    if (typeof organizer === 'object' && 'code' in organizer) {
-      organizer.id = data.organizer_id || '';
-      organizer.name = 'Unknown';
-      organizer.avatar = '';
-    }
-
-    // Determine event status
-    const now = new Date();
-    const startDate = new Date(data.start_date);
-    const endDate = new Date(data.end_date);
-    
-    let status: 'upcoming' | 'ongoing' | 'past';
-    if (isBefore(now, startDate)) {
-      status = 'upcoming';
-    } else if (isAfter(now, endDate)) {
-      status = 'past';
-    } else {
-      status = 'ongoing';
-    }
-
-    // Check if current user is registered
-    const user = (await supabase.auth.getUser()).data.user;
-    let isRegistered = false;
-    
-    if (user) {
-      const { data: registration } = await supabase
-        .from('event_attendees')
-        .select('id')
-        .eq('event_id', eventId)
-        .eq('user_id', user.id)
-        .single();
-      
-      isRegistered = !!registration;
+      throw new Error(error.message);
     }
 
     return {
-      id: data.id,
-      title: data.title,
-      description: data.description,
-      location: data.location || undefined,
-      isVirtual: data.is_virtual || false,
-      startDate: data.start_date,
-      startTime: format(parseISO(data.start_date), 'HH:mm'),
-      endDate: data.end_date,
-      endTime: format(parseISO(data.end_date), 'HH:mm'),
-      category: data.category || 'General',
-      imageUrl: data.image_url,
-      maxAttendees: data.max_attendees,
-      currentAttendees: data.current_attendees || 0,
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      location: event.location || '',
+      isVirtual: event.is_virtual,
+      startDate: event.start_date,
+      startTime: event.start_time,
+      endDate: event.end_date,
+      endTime: event.end_time,
+      category: event.category || 'General',
+      imageUrl: event.image_url || '',
+      maxAttendees: event.max_attendees,
+      currentAttendees: event.current_attendees,
       organizer: {
-        id: organizer.id,
-        name: organizer.name,
-        avatar: organizer.avatar
+        id: safeGet(event.organizer, 'id', ''),
+        name: safeGet(event.organizer, 'name', 'Unknown'),
+        avatar: safeGet(event.organizer, 'avatar', ''),
+        role: safeGet(event.organizer, 'role', 'member')
       },
-      createdAt: data.created_at,
-      updatedAt: data.updated_at,
-      status,
-      timeAgo: formatTimeAgo(data.created_at),
-      attendees: data.current_attendees || 0,
-      isRegistered
+      createdAt: event.created_at,
+      updatedAt: event.updated_at,
+      status: event.status || 'upcoming'
     };
   } catch (error) {
     console.error("Error in getEvent:", error);
@@ -220,124 +176,66 @@ export const getEvent = async (eventId: string): Promise<EventWithDetails | null
   }
 };
 
-// Check if the current user is registered for an event
-export const checkEventRegistration = async (eventId: string): Promise<boolean> => {
+// Get event attendees
+const getEventAttendees = async (eventId: string): Promise<User[]> => {
   try {
-    const user = (await supabase.auth.getUser()).data.user;
-    
-    if (!user) {
-      return false;
-    }
-    
-    const { data, error } = await supabase
+    const { data: attendees, error } = await supabase
       .from('event_attendees')
-      .select('id')
-      .eq('event_id', eventId)
-      .eq('user_id', user.id)
-      .single();
-    
-    if (error && error.code !== 'PGRST116') {
-      console.error("Error checking event registration:", error);
-      return false;
-    }
-    
-    return !!data;
-  } catch (error) {
-    console.error("Error in checkEventRegistration:", error);
-    return false;
-  }
-};
+      .select(`user_id`)
+      .eq('event_id', eventId);
 
-// Register for an event
-export const registerForEvent = async (eventId: string): Promise<boolean> => {
-  try {
-    const user = (await supabase.auth.getUser()).data.user;
-    
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-    
-    const { error } = await supabase
-      .from('event_attendees')
-      .insert({
-        event_id: eventId,
-        user_id: user.id
-      });
-    
     if (error) {
-      console.error("Error registering for event:", error);
-      return false;
+      console.error("Error fetching event attendees:", error);
+      throw new Error(error.message);
     }
-    
-    return true;
-  } catch (error) {
-    console.error("Error in registerForEvent:", error);
-    throw error;
-  }
-};
 
-// Cancel event registration
-export const cancelEventRegistration = async (eventId: string): Promise<boolean> => {
-  try {
-    const user = (await supabase.auth.getUser()).data.user;
-    
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-    
-    const { error } = await supabase
-      .from('event_attendees')
-      .delete()
-      .eq('event_id', eventId)
-      .eq('user_id', user.id);
-    
-    if (error) {
-      console.error("Error cancelling event registration:", error);
-      return false;
-    }
-    
-    return true;
+    return attendees?.map(attendee => ({
+      id: attendee.user_id,
+      name: 'Attendee',
+      avatar: '',
+      role: 'member'
+    })) || [];
   } catch (error) {
-    console.error("Error in cancelEventRegistration:", error);
+    console.error("Error in getEventAttendees:", error);
     throw error;
   }
 };
 
 // Create a new event
-export const createEvent = async (eventData: EventFormData): Promise<string | null> => {
+const createEvent = async (eventData: EventFormData): Promise<string> => {
   try {
     const user = (await supabase.auth.getUser()).data.user;
-    
+
     if (!user) {
       throw new Error("User not authenticated");
     }
-    
-    const startDateTime = `${eventData.startDate}T${eventData.startTime}:00`;
-    const endDateTime = `${eventData.endDate}T${eventData.endTime}:00`;
-    
-    const { data, error } = await supabase
+
+    const { data:newEvent, error } = await supabase
       .from('events')
       .insert({
         title: eventData.title,
         description: eventData.description,
-        location: eventData.location || null,
+        location: eventData.location,
         is_virtual: eventData.isVirtual,
-        start_date: startDateTime,
-        end_date: endDateTime,
+        start_date: eventData.startDate,
+        start_time: eventData.startTime,
+        end_date: eventData.endDate,
+        end_time: eventData.endTime,
         category: eventData.category,
-        image_url: eventData.imageUrl || null,
-        max_attendees: eventData.maxAttendees || null,
-        organizer_id: user.id
+        image_url: eventData.imageUrl,
+        max_attendees: eventData.maxAttendees,
+        organizer_id: user.id,
+        status: 'upcoming'
       })
       .select('id')
       .single();
-    
+
     if (error) {
       console.error("Error creating event:", error);
-      return null;
+      throw new Error(error.message);
     }
-    
-    return data.id;
+
+    return newEvent.id;
   } catch (error) {
     console.error("Error in createEvent:", error);
     throw error;
@@ -345,40 +243,29 @@ export const createEvent = async (eventData: EventFormData): Promise<string | nu
 };
 
 // Update an existing event
-export const updateEvent = async (eventId: string, eventData: EventFormData): Promise<boolean> => {
+const updateEvent = async (eventId: string, eventData: EventFormData): Promise<void> => {
   try {
-    const user = (await supabase.auth.getUser()).data.user;
-    
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-    
-    const startDateTime = `${eventData.startDate}T${eventData.startTime}:00`;
-    const endDateTime = `${eventData.endDate}T${eventData.endTime}:00`;
-    
     const { error } = await supabase
       .from('events')
       .update({
         title: eventData.title,
         description: eventData.description,
-        location: eventData.location || null,
+        location: eventData.location,
         is_virtual: eventData.isVirtual,
-        start_date: startDateTime,
-        end_date: endDateTime,
+        start_date: eventData.startDate,
+        start_time: eventData.startTime,
+        end_date: eventData.endDate,
+        end_time: eventData.endTime,
         category: eventData.category,
-        image_url: eventData.imageUrl || null,
-        max_attendees: eventData.maxAttendees || null,
-        updated_at: new Date().toISOString()
+        image_url: eventData.imageUrl,
+        max_attendees: eventData.maxAttendees
       })
-      .eq('id', eventId)
-      .eq('organizer_id', user.id);
-    
+      .eq('id', eventId);
+
     if (error) {
       console.error("Error updating event:", error);
-      return false;
+      throw new Error(error.message);
     }
-    
-    return true;
   } catch (error) {
     console.error("Error in updateEvent:", error);
     throw error;
@@ -386,122 +273,152 @@ export const updateEvent = async (eventId: string, eventData: EventFormData): Pr
 };
 
 // Delete an event
-export const deleteEvent = async (eventId: string): Promise<boolean> => {
+const deleteEvent = async (eventId: string): Promise<void> => {
   try {
-    const user = (await supabase.auth.getUser()).data.user;
-    
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-    
     const { error } = await supabase
       .from('events')
       .delete()
-      .eq('id', eventId)
-      .eq('organizer_id', user.id);
-    
+      .eq('id', eventId);
+
     if (error) {
       console.error("Error deleting event:", error);
-      return false;
+      throw new Error(error.message);
     }
-    
-    return true;
   } catch (error) {
     console.error("Error in deleteEvent:", error);
     throw error;
   }
 };
 
-// Get event categories
-export const getEventCategories = async (): Promise<string[]> => {
+// Register a user for an event
+const registerForEvent = async (eventId: string): Promise<void> => {
   try {
-    const { data, error } = await supabase
-      .from('events')
-      .select('category')
-      .not('category', 'is', null);
-    
-    if (error) {
-      console.error("Error fetching event categories:", error);
-      return [];
+    const user = (await supabase.auth.getUser()).data.user;
+
+    if (!user) {
+      throw new Error("User not authenticated");
     }
-    
-    // Extract unique categories
-    const categories = [...new Set(data.map(event => event.category))];
-    return categories.filter(Boolean);
+
+    const { error } = await supabase
+      .from('event_attendees')
+      .insert({
+        event_id: eventId,
+        user_id: user.id,
+        registered_at: new Date().toISOString(),
+        status: 'registered'
+      });
+
+    if (error) {
+      console.error("Error registering for event:", error);
+      throw new Error(error.message);
+    }
+  } catch (error) {
+    console.error("Error in registerForEvent:", error);
+    throw error;
+  }
+};
+
+// Cancel a user's event registration
+const cancelEventRegistration = async (eventId: string): Promise<void> => {
+  try {
+    const user = (await supabase.auth.getUser()).data.user;
+
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const { error } = await supabase
+      .from('event_attendees')
+      .delete()
+      .eq('event_id', eventId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error("Error cancelling event registration:", error);
+      throw new Error(error.message);
+    }
+  } catch (error) {
+    console.error("Error in cancelEventRegistration:", error);
+    throw error;
+  }
+};
+
+// Get all event categories
+const getEventCategories = async (): Promise<string[]> => {
+  try {
+    // Mock categories for now
+    return ['General', 'Technology', 'Music', 'Sports', 'Web3', 'AI'];
   } catch (error) {
     console.error("Error in getEventCategories:", error);
     return [];
   }
 };
 
-// Get events created by the current user
-export const getUserEvents = async (): Promise<Event[]> => {
+// Search events by title or description
+const searchEvents = async (query: string): Promise<Event[]> => {
   try {
-    const user = (await supabase.auth.getUser()).data.user;
-    
-    if (!user) {
-      return [];
-    }
-    
-    const { data, error } = await supabase
+    const { data: events, error } = await supabase
       .from('events')
       .select(`
-        *,
+        id,
+        title,
+        description,
+        location,
+        is_virtual,
+        start_date,
+        start_time,
+        end_date,
+        end_time,
+        category,
+        image_url,
+        max_attendees,
+        current_attendees,
+        created_at,
+        updated_at,
+        status,
         organizer:organizer_id (
           id,
           name,
-          avatar
+          avatar,
+          role
         )
       `)
-      .eq('organizer_id', user.id)
-      .order('start_date', { ascending: true });
-    
+      .ilike('title', `%${query}%`)
+      .order('start_date', { ascending: false });
+
     if (error) {
-      console.error("Error fetching user events:", error);
-      return [];
+      console.error("Error searching events:", error);
+      throw new Error(error.message);
     }
-    
-    return data.map(event => {
-      // Create a safe organizer object
-      const organizer = event.organizer || { 
-        id: event.organizer_id || '',
-        name: 'Unknown',
-        avatar: '' 
-      };
 
-      // If organizer is an error object, create a default organizer
-      if (typeof organizer === 'object' && 'code' in organizer) {
-        organizer.id = event.organizer_id || '';
-        organizer.name = 'Unknown';
-        organizer.avatar = '';
-      }
+    const formattedEvents = events.map(event => ({
+      id: event.id,
+      title: event.title,
+      description: event.description,
+      location: event.location || '',
+      isVirtual: event.is_virtual,
+      startDate: event.start_date,
+      startTime: event.start_time,
+      endDate: event.end_date,
+      endTime: event.end_time,
+      category: event.category || 'General',
+      imageUrl: event.image_url || '',
+      maxAttendees: event.max_attendees,
+      currentAttendees: event.current_attendees,
+      organizer: {
+        id: safeGet(event.organizer, 'id', ''),
+        name: safeGet(event.organizer, 'name', 'Unknown'),
+        avatar: safeGet(event.organizer, 'avatar', ''),
+        role: safeGet(event.organizer, 'role', 'member')
+      },
+      createdAt: event.created_at,
+      updatedAt: event.updated_at,
+      status: event.status || 'upcoming'
+    }));
 
-      return {
-        id: event.id,
-        title: event.title,
-        description: event.description,
-        location: event.location || undefined,
-        isVirtual: event.is_virtual || false,
-        startDate: event.start_date,
-        startTime: format(parseISO(event.start_date), 'HH:mm'),
-        endDate: event.end_date,
-        endTime: format(parseISO(event.end_date), 'HH:mm'),
-        category: event.category || 'General',
-        imageUrl: event.image_url,
-        maxAttendees: event.max_attendees,
-        currentAttendees: event.current_attendees || 0,
-        organizer: {
-          id: organizer.id,
-          name: organizer.name,
-          avatar: organizer.avatar
-        },
-        createdAt: event.created_at,
-        updatedAt: event.updated_at,
-        isRegistered: true
-      };
-    });
+    return formattedEvents;
   } catch (error) {
-    console.error("Error in getUserEvents:", error);
+    console.error("Error in searchEvents:", error);
     throw error;
   }
 };
@@ -509,14 +426,14 @@ export const getUserEvents = async (): Promise<Event[]> => {
 const eventService = {
   getEvents,
   getEvent,
-  checkEventRegistration,
-  registerForEvent,
-  cancelEventRegistration,
+  getEventAttendees,
   createEvent,
   updateEvent,
   deleteEvent,
+  registerForEvent,
+  cancelEventRegistration,
   getEventCategories,
-  getUserEvents
+  searchEvents
 };
 
 export default eventService;

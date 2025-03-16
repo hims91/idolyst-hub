@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Events from '@/components/Events';
 import { useQuery } from '@tanstack/react-query';

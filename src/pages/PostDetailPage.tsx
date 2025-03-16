@@ -165,6 +165,8 @@ const PostDetailPage = () => {
       timeAgo: 'just now',
       upvotes: 0,
       downvotes: 0,
+      isUpvoted: false,
+      isDownvoted: false,
       replies: [],
     };
     

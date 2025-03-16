@@ -1,3 +1,4 @@
+
 // User types
 export interface User {
   id: string;
@@ -13,10 +14,17 @@ export interface UserProfile extends User {
   joinedOn: string;
   website?: string;
   location?: string;
+  company?: string;
   skills?: string[];
   interests?: string[];
   followersCount: number;
   followingCount: number;
+  socialLinks?: {
+    twitter?: string;
+    linkedin?: string;
+    github?: string;
+    website?: string;
+  };
 }
 
 // Post types
@@ -67,6 +75,29 @@ export interface AdminStats {
   uptime: string;
   userGrowthData: DataPoint[];
   postActivityData: DataPoint[];
+  users: number;
+  posts: number;
+  comments: number;
+  events: number;
+  summaryCards: Array<{
+    title: string;
+    value: number;
+    change: number;
+    trend: 'up' | 'down';
+  }>;
+  userActivity: Array<{
+    date: string;
+    active: number;
+    new: number;
+  }>;
+  contentDistribution: Array<{
+    type: string;
+    value: number;
+  }>;
+  monthlyRevenue: Array<{
+    month: string;
+    revenue: number;
+  }>;
   [key: string]: any;
 }
 

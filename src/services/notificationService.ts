@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Notification } from "@/types/api";
 import { formatTimeAgo } from "@/lib/utils";
@@ -215,12 +214,111 @@ export const getUnreadNotificationCount = async (): Promise<number> => {
   }
 };
 
+// Add this function to notificationService
+// Only showing the addition, not the entire file
+export const createNotification = async (data: {
+  userId: string;
+  title: string;
+  message: string;
+  type: 'follow' | 'like' | 'comment' | 'message' | 'event' | 'badge' | 'system';
+  linkTo?: string;
+  senderId?: string;
+}) => {
+  try {
+    // First check that the Supabase table exists before trying to insert
+    const { data: tableExists, error: tableCheckError } = await supabase
+      .from('notifications')
+      .select('id')
+      .limit(1);
+
+    if (tableCheckError) {
+      console.error('Error checking notifications table:', tableCheckError);
+      console.log('This is likely because the notifications table does not exist in your Supabase database');
+      return false;
+    }
+
+    if (tableExists) {
+      const { error } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: data.userId,
+          title: data.title,
+          message: data.message,
+          type: data.type,
+          is_read: false,
+          link_to: data.linkTo,
+          sender_id: data.senderId
+        });
+        
+      if (error) {
+        console.error('Error creating notification:', error);
+        return false;
+      }
+      
+      return true;
+    }
+    
+    // Fallback if table doesn't exist
+    console.log('Would create notification:', data);
+    return false;
+  } catch (error) {
+    console.error('Error in createNotification:', error);
+    return false;
+  }
+};
+
+export const notifyFollowers = async (
+  userId: string,
+  title: string,
+  message: string,
+  type: 'follow' | 'like' | 'comment' | 'message' | 'event' | 'badge' | 'system',
+  linkTo?: string
+) => {
+  try {
+    // First get all followers of the user
+    const { data: followers, error } = await supabase
+      .from('user_followers')
+      .select('follower_id')
+      .eq('following_id', userId);
+      
+    if (error) {
+      console.error('Error fetching followers:', error);
+      return false;
+    }
+    
+    if (!followers || followers.length === 0) {
+      console.log('No followers to notify');
+      return true;
+    }
+    
+    // Create notifications for each follower
+    const notificationPromises = followers.map(follower => 
+      createNotification({
+        userId: follower.follower_id,
+        title,
+        message,
+        type,
+        linkTo,
+        senderId: userId
+      })
+    );
+    
+    await Promise.all(notificationPromises);
+    return true;
+  } catch (error) {
+    console.error('Error in notifyFollowers:', error);
+    return false;
+  }
+};
+
 export const notificationService = {
   getNotifications,
   markNotificationAsRead,
   markAllNotificationsAsRead,
   setupNotificationListener,
-  getUnreadNotificationCount
+  getUnreadNotificationCount,
+  createNotification,
+  notifyFollowers
 };
 
 export default notificationService;

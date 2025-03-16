@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Shell } from '@/components/ui/shell';
@@ -82,7 +81,7 @@ const AdminPage: React.FC = () => {
           </TabsList>
           
           <TabsContent value="dashboard">
-            <AdminStats stats={stats || {}} />
+            {stats ? <AdminStats stats={stats} /> : <AdminStats stats={{} as AdminStats} />}
           </TabsContent>
           
           <TabsContent value="users">
