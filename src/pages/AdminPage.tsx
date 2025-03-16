@@ -83,7 +83,7 @@ const AdminPage: React.FC = () => {
           </TabsList>
           
           <TabsContent value="dashboard">
-            {stats ? <AdminStats stats={stats as unknown as AdminStatsType} /> : <AdminStats stats={{} as AdminStatsType} />}
+            {stats ? <AdminStats stats={stats} /> : <AdminStats stats={{} as AdminStatsType} />}
           </TabsContent>
           
           <TabsContent value="users">

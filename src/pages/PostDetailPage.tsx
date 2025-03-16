@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
@@ -7,8 +8,6 @@ import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -47,9 +46,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { commentService } from '@/services/commentService';
-import { postService } from '@/services/postService';
-import { userService } from '@/services/userService';
+import commentService from '@/services/commentService';
+import postService from '@/services/postService';
+import userService from '@/services/userService';
 import { Post, Comment } from '@/types/api';
 
 interface PostDetailProps {
@@ -59,7 +58,7 @@ interface PostDetailProps {
 interface CommentProps {
   comment: Comment;
   replies?: Comment[];
-  onReply?: (content: string, parentId: string) => void;
+  onReply?: (commentId: string) => void;
 }
 
 const PostDetailPage = () => {
@@ -84,24 +83,7 @@ const PostDetailPage = () => {
     queryFn: () => commentService.getComments(postId || ''),
     enabled: !!postId,
   });
-
-  const { data: author, isLoading: authorLoading } = useQuery({
-    queryKey: ['author', post?.author.id],
-    queryFn: () => userService.getUser(post?.author.id || ''),
-    enabled: !!post?.author.id,
-  });
   
-  // Function to convert API Comment type to service Comment type
-  const convertComments = (apiComments: any[]): any[] => {
-    return apiComments.map(comment => ({
-      ...comment,
-      author: {
-        ...comment.author,
-        role: comment.author.role || 'user' // Ensure role is always present
-      }
-    }));
-  };
-
   // Submit comment handler
   const handleCommentSubmit = async (content: string, parentId?: string) => {
     if (!auth.user) {
@@ -112,6 +94,8 @@ const PostDetailPage = () => {
       });
       return;
     }
+
+    if (!postId) return;
 
     setIsSubmittingComment(true);
 
@@ -126,14 +110,14 @@ const PostDetailPage = () => {
             comment.id === parentId 
               ? { 
                   ...comment, 
-                  replies: [...(comment.replies || []), convertComments([newComment])[0]] 
+                  replies: [...(comment.replies || []), newComment] 
                 }
               : comment
           )
         );
       } else {
         // Add top-level comment
-        setComments(prevComments => [...prevComments, convertComments([newComment])[0]]);
+        setComments(prevComments => [...prevComments, newComment]);
       }
 
       setCommentContent("");
@@ -169,12 +153,9 @@ const PostDetailPage = () => {
 
   const renderCommentForm = (parentId: string | null = null) => (
     <div className="mb-4">
-      <Label htmlFor="comment" className="text-sm">
-        {parentId ? "Reply to comment" : "Add a comment"}
-      </Label>
       <Textarea
         id="comment"
-        placeholder="Write your comment here..."
+        placeholder={parentId ? "Write your reply here..." : "Write your comment here..."}
         value={commentContent}
         onChange={(e) => setCommentContent(e.target.value)}
         className="mt-2 resize-none"
@@ -190,7 +171,7 @@ const PostDetailPage = () => {
           onClick={() => handleCommentSubmit(commentContent, parentId || undefined)}
           disabled={isSubmittingComment}
         >
-          {isSubmittingComment ? "Submitting..." : "Submit Comment"}
+          {isSubmittingComment ? "Submitting..." : parentId ? "Submit Reply" : "Submit Comment"}
         </Button>
       </div>
     </div>
@@ -276,7 +257,11 @@ const PostDetailPage = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-4 w-full" count={5} />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
         </CardContent>
       </Card>
     );
@@ -331,7 +316,7 @@ const PostDetailPage = () => {
         {renderCommentForm()}
         <ScrollArea className="h-[300px] w-full">
           <div className="space-y-4">
-            {commentsData && convertComments(commentsData).map(comment => (
+            {commentsData && commentsData.map(comment => (
               <CommentComponent
                 key={comment.id}
                 comment={comment}

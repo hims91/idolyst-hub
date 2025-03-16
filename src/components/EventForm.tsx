@@ -130,10 +130,17 @@ const EventForm: React.FC<EventFormProps> = ({ eventId, existingEvent }) => {
 
     try {
       const eventData: EventFormData = {
-        ...data,
-        // Normalize data
-        location: data.isVirtual ? undefined : data.location,
+        title: data.title,
+        description: data.description,
+        location: data.isVirtual ? '' : (data.location || ''),
+        isVirtual: data.isVirtual,
+        startDate: data.startDate,
+        startTime: data.startTime,
+        endDate: data.endDate,
+        endTime: data.endTime,
+        category: data.category,
         imageUrl: data.imageUrl || undefined,
+        maxAttendees: data.maxAttendees
       };
 
       let success = false;
