@@ -1,467 +1,382 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { Shell } from '@/components/ui/shell';
 import { PageTitle } from '@/components/ui/page-title';
-import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { CalendarIcon } from "@radix-ui/react-icons";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Spinner } from '@/components/ui/spinner';
-import { ChevronLeft, Calendar } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import { useAuth } from '@/context/AuthContext';
-import { EventFormData } from '@/types/api';
+} from "@/components/ui/select";
 import eventService from '@/services/eventService';
-import { notificationService } from '@/services/notificationService';
-import { Helmet } from 'react-helmet';
+import notificationService from '@/services/notificationService';
+import { EventFormData } from '@/types/api';
 
-const formSchema = z.object({
-  title: z.string().min(5, {
-    message: 'Title must be at least 5 characters.',
-  }),
-  description: z.string().min(20, {
-    message: 'Description must be at least 20 characters.',
-  }),
-  location: z.string().optional(),
-  isVirtual: z.boolean().default(false),
-  startDate: z.string().min(1, {
-    message: 'Start date is required.',
-  }),
-  startTime: z.string().min(1, {
-    message: 'Start time is required.',
-  }),
-  endDate: z.string().min(1, {
-    message: 'End date is required.',
-  }),
-  endTime: z.string().min(1, {
-    message: 'End time is required.',
-  }),
-  category: z.string().min(1, {
-    message: 'Category is required.',
-  }),
-  maxAttendees: z.string().optional(),
-  imageUrl: z.string().optional(),
-});
-
-const EventFormPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+const EventFormPage = () => {
+  const { eventId: eventIdParam } = useParams<{ eventId: string }>();
   const navigate = useNavigate();
+  const auth = useAuth();
   const { toast } = useToast();
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const isEditMode = !!id;
 
-  if (!user) {
-    navigate('/login');
-    toast({
-      title: 'Authentication required',
-      description: 'Please sign in to create or edit events',
-      variant: 'destructive',
-    });
-  }
-
-  const {
-    data: event,
-    isLoading: eventLoading,
-  } = useQuery({
-    queryKey: ['event', id],
-    queryFn: () => eventService.getEvent(id || ''),
-    enabled: isEditMode,
+  const [isEditing, setIsEditing] = useState(!!eventIdParam);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    location: '',
+    isVirtual: false,
+    startDate: format(new Date(), "yyyy-MM-dd"),
+    startTime: '09:00',
+    endDate: format(new Date(), "yyyy-MM-dd"),
+    endTime: '17:00',
+    category: 'General',
+    imageUrl: '',
+    maxAttendees: '',
   });
 
-  const {
-    data: categories,
-    isLoading: categoriesLoading,
-  } = useQuery({
-    queryKey: ['eventCategories'],
-    queryFn: () => eventService.getEventCategories(),
-    initialData: [],
-  });
+  const [categories, setCategories] = useState<string[]>([]);
 
-  const form = useForm<EventFormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: '',
-      description: '',
-      location: '',
-      isVirtual: false,
-      startDate: format(new Date(), 'yyyy-MM-dd'),
-      startTime: '18:00',
-      endDate: format(new Date(), 'yyyy-MM-dd'),
-      endTime: '21:00',
-      category: 'General',
-      maxAttendees: undefined,
-      imageUrl: '',
-    },
-  });
-
-  React.useEffect(() => {
-    if (event && isEditMode) {
-      const startDate = new Date(event.startDate);
-      const endDate = new Date(event.endDate);
-      
-      form.reset({
-        title: event.title,
-        description: event.description,
-        location: event.location || '',
-        isVirtual: event.isVirtual,
-        startDate: format(startDate, 'yyyy-MM-dd'),
-        startTime: event.startTime || format(startDate, 'HH:mm'),
-        endDate: format(endDate, 'yyyy-MM-dd'),
-        endTime: event.endTime || format(endDate, 'HH:mm'),
-        category: event.category || 'General',
-        maxAttendees: event.maxAttendees,
-        imageUrl: event.imageUrl || '',
-      });
-    }
-  }, [event, isEditMode, form]);
-
-  const createMutation = useMutation({
-    mutationFn: (data: EventFormData) => eventService.createEvent(data),
-    onSuccess: (eventId) => {
-      toast({
-        title: 'Event created',
-        description: 'Your event has been successfully created',
-      });
-      
-      if (user) {
-        notificationService.notifyFollowers(
-          user.id,
-          'New Event Created',
-          `${user.name} created a new event: ${form.getValues().title}`,
-          'event',
-          `/events/${eventId}`
-        );
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const categoriesData = await eventService.getEventCategories();
+        setCategories(categoriesData);
+      } catch (error) {
+        console.error("Failed to fetch event categories:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load event categories. Please try again.",
+        });
       }
-      
-      navigate(`/events/${eventId}`);
-    },
-    onError: (error) => {
-      toast({
-        title: 'Failed to create event',
-        description: error instanceof Error ? error.message : 'An error occurred',
-        variant: 'destructive',
-      });
-    },
-  });
+    };
 
-  const updateMutation = useMutation({
-    mutationFn: (data: EventFormData) => {
-      if (!id) throw new Error('Event ID is missing');
-      return eventService.updateEvent(id, data);
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Event updated',
-        description: 'Your event has been successfully updated',
-      });
-      
-      navigate(`/events/${id}`);
-    },
-    onError: (error) => {
-      toast({
-        title: 'Failed to update event',
-        description: error instanceof Error ? error.message : 'An error occurred',
-        variant: 'destructive',
-      });
-    },
-  });
+    fetchCategories();
+  }, [toast]);
 
-  const onSubmit = (data: EventFormData) => {
-    if (isEditMode) {
-      updateMutation.mutate(data);
-    } else {
-      createMutation.mutate(data);
+  useEffect(() => {
+    if (isEditing && eventIdParam) {
+      const fetchEventData = async () => {
+        try {
+          const eventData = await eventService.getEvent(eventIdParam);
+          setFormData({
+            title: eventData.title,
+            description: eventData.description,
+            location: eventData.location || '',
+            isVirtual: eventData.isVirtual,
+            startDate: eventData.startDate,
+            startTime: eventData.startTime || '09:00',
+            endDate: eventData.endDate,
+            endTime: eventData.endTime || '17:00',
+            category: eventData.category,
+            imageUrl: eventData.imageUrl || '',
+            maxAttendees: eventData.maxAttendees?.toString() || '',
+          });
+        } catch (error) {
+          console.error("Failed to fetch event data:", error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load event data. Please try again.",
+          });
+          navigate('/events');
+        }
+      };
+
+      fetchEventData();
+    }
+  }, [isEditing, eventIdParam, navigate, toast]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSwitchChange = (checked: boolean) => {
+    setFormData({
+      ...formData,
+      isVirtual: checked,
+      location: checked ? '' : formData.location,
+    });
+  };
+
+  const handleDateChange = (date: Date | undefined, field: string) => {
+    if (date) {
+      setFormData({
+        ...formData,
+        [field]: format(date, "yyyy-MM-dd"),
+      });
     }
   };
 
-  if (eventLoading && isEditMode) {
-    return (
-      <Shell>
-        <div className="flex justify-center items-center py-20">
-          <Spinner size="lg" />
-        </div>
-      </Shell>
-    );
-  }
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    try {
+      // Convert form values where needed
+      const eventData: EventFormData = {
+        title: formData.title,
+        description: formData.description,
+        location: formData.isVirtual ? undefined : formData.location,
+        isVirtual: formData.isVirtual,
+        startDate: formData.startDate,
+        startTime: formData.startTime,
+        endDate: formData.endDate,
+        endTime: formData.endTime,
+        category: formData.category,
+        imageUrl: formData.imageUrl,
+        // Convert maxAttendees to number or undefined
+        maxAttendees: formData.maxAttendees ? parseInt(formData.maxAttendees, 10) : undefined
+      };
+
+      let eventId: string;
+
+      if (isEditing && eventIdParam) {
+        await eventService.updateEvent(eventIdParam, eventData);
+        eventId = eventIdParam;
+        toast({
+          title: "Event Updated",
+          description: "Your event has been updated successfully.",
+        });
+      } else {
+        eventId = await eventService.createEvent(eventData);
+        
+        // Convert maxAttendees to number for notification message
+        const maxAttendees = formData.maxAttendees ? parseInt(formData.maxAttendees, 10) : undefined;
+        
+        toast({
+          title: "Event Created",
+          description: "Your event has been created successfully.",
+        });
+
+        if (auth.user) {
+          // Notify followers about the new event
+          await notificationService.notifyFollowers(
+            auth.user.id,
+            "New Event",
+            `${auth.user.name} has created a new event: ${formData.title}`,
+            "event",
+            `/events/${eventId}`
+          );
+        }
+      }
+
+      navigate(`/events/${eventId}`);
+    } catch (error) {
+      console.error("Error saving event:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to save event. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <>
-      <Helmet>
-        <title>{isEditMode ? 'Edit Event' : 'Create Event'} | Events</title>
-      </Helmet>
-
-      <Shell>
-        <Button
-          variant="ghost"
-          className="mb-6"
-          onClick={() => navigate(-1)}
-        >
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          Back
-        </Button>
-
-        <PageTitle
-          heading={isEditMode ? 'Edit Event' : 'Create a New Event'}
-          text={
-            isEditMode
-              ? 'Update your event details'
-              : 'Fill out the form below to create a new event'
-          }
-        />
-
-        <div className="max-w-2xl mx-auto">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <FormField
-                control={form.control}
+    <Shell>
+      <PageTitle heading={isEditing ? "Edit Event" : "Create Event"} text={isEditing ? "Update your event details." : "Share your event with the community."} />
+      <Card>
+        <CardContent className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="title">Title</Label>
+              <Input
+                type="text"
+                id="title"
                 name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Event Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter event title" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                value={formData.title}
+                onChange={handleChange}
+                required
               />
-
-              <FormField
-                control={form.control}
+            </div>
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
                 name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Describe your event"
-                        rows={5}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                value={formData.description}
+                onChange={handleChange}
+                required
               />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a category" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="General">General</SelectItem>
-                          {categories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="maxAttendees"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Maximum Attendees</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder="Leave empty for unlimited"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Optional: limit the number of attendees
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="isVirtual"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Virtual Event</FormLabel>
-                      <FormDescription>
-                        Is this event happening online?
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              {!form.watch('isVirtual') && (
-                <FormField
-                  control={form.control}
-                  name="location"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Location</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Event location" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="startDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Start Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="startTime"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Start Time</FormLabel>
-                      <FormControl>
-                        <Input type="time" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="endDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>End Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="endTime"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>End Time</FormLabel>
-                      <FormControl>
-                        <Input type="time" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
+            </div>
+            <div>
+              <Label htmlFor="category">Category</Label>
+              <Select onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a category" defaultValue={formData.category} />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="imageUrl">Image URL</Label>
+              <Input
+                type="url"
+                id="imageUrl"
                 name="imageUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Image URL</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="URL to event image or poster"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Optional: add an image for your event
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                value={formData.imageUrl}
+                onChange={handleChange}
               />
-
-              <div className="flex justify-end space-x-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate(-1)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={
-                    createMutation.isPending ||
-                    updateMutation.isPending ||
-                    loading
-                  }
-                >
-                  {(createMutation.isPending ||
-                    updateMutation.isPending ||
-                    loading) && <Spinner className="mr-2" size="sm" />}
-                  {isEditMode ? 'Update Event' : 'Create Event'}
-                </Button>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="isVirtual">Virtual Event</Label>
+              <Switch
+                id="isVirtual"
+                name="isVirtual"
+                checked={formData.isVirtual}
+                onCheckedChange={handleSwitchChange}
+              />
+            </div>
+            {!formData.isVirtual && (
+              <div>
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  type="text"
+                  id="location"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleChange}
+                  required={!formData.isVirtual}
+                  disabled={formData.isVirtual}
+                />
               </div>
-            </form>
-          </Form>
-        </div>
-      </Shell>
-    </>
+            )}
+            <div>
+              <Label htmlFor="maxAttendees">Max Attendees</Label>
+              <Input
+                type="number"
+                id="maxAttendees"
+                name="maxAttendees"
+                value={formData.maxAttendees}
+                onChange={handleChange}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Start Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.startDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.startDate ? (
+                        format(new Date(formData.startDate), "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.startDate ? new Date(formData.startDate) : undefined}
+                      onSelect={(date) => handleDateChange(date, "startDate")}
+                      disabled={false}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Input
+                  type="hidden"
+                  name="startDate"
+                  value={formData.startDate}
+                />
+              </div>
+              <div>
+                <Label htmlFor="startTime">Start Time</Label>
+                <Input
+                  type="time"
+                  id="startTime"
+                  name="startTime"
+                  value={formData.startTime}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>End Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.endDate ? (
+                        format(new Date(formData.endDate), "PPP")
+                      ) : (
+                        <span>Pick a date</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.endDate ? new Date(formData.endDate) : undefined}
+                      onSelect={(date) => handleDateChange(date, "endDate")}
+                      disabled={false}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Input
+                  type="hidden"
+                  name="endDate"
+                  value={formData.endDate}
+                />
+              </div>
+              <div>
+                <Label htmlFor="endTime">End Time</Label>
+                <Input
+                  type="time"
+                  id="endTime"
+                  name="endTime"
+                  value={formData.endTime}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </Shell>
   );
 };
 

@@ -1,4 +1,3 @@
-
 // User types
 export interface User {
   id: string;
@@ -50,10 +49,11 @@ export interface Post {
   shares?: number;
 }
 
+// Update the Comment type to ensure role is required
 export interface Comment {
   id: string;
   content: string;
-  author: User;
+  author: User & { role: string }; // Ensure role is required
   createdAt: string;
   timeAgo: string;
   upvotes: number;

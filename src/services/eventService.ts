@@ -2,11 +2,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { Event, EventWithDetails, EventFilter, EventFormData, User } from '@/types/api';
 
 // Helper function to safely access properties from potentially null/error objects
-const safeGet = <T extends object, K extends keyof T>(obj: T | null | undefined | { code?: string }, key: K, defaultValue?: T[K]): T[K] | undefined => {
+const safeGet = <T, K extends keyof T>(obj: T | null | undefined | { code?: string }, key: K, defaultValue: any = undefined): any => {
   if (!obj || typeof obj !== 'object' || 'code' in obj) {
     return defaultValue;
   }
-  return obj[key] !== undefined ? obj[key] : defaultValue;
+  
+  // Check if the key exists before attempting to access it
+  if (Object.prototype.hasOwnProperty.call(obj, key)) {
+    return (obj as T)[key];
+  }
+  
+  return defaultValue;
 };
 
 // Get all events with pagination and filters
@@ -91,7 +97,7 @@ const getEvents = async (page: number = 1, limit: number = 12, filters: EventFil
       createdAt: event.created_at,
       updatedAt: event.updated_at,
       isRegistered: !!event.is_registered,
-      status: event.status || 'upcoming' // Fix the missing status property
+      status: event.status || 'upcoming'
     }));
 
     const totalEvents = count || 0;

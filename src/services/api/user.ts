@@ -1,14 +1,19 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@/types/api";
+import { safeQueryResult, checkColumnExists } from "@/utils/supabaseHelpers";
 
 const getUser = async (userId: string): Promise<User | null> => {
   try {
-    const { data, error } = await supabase
+    // First check if the skills column exists in profiles
+    const hasSkills = await checkColumnExists('profiles', 'skills');
+    
+    let query = supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
+    
+    const { data, error } = await query;
     
     if (error) throw error;
     
@@ -17,7 +22,9 @@ const getUser = async (userId: string): Promise<User | null> => {
       name: data.name || 'Unknown',
       avatar: data.avatar,
       role: data.role || 'user',
-      bio: data.bio
+      bio: data.bio,
+      // Only include skills if the column exists
+      ...(hasSkills && data.skills ? { skills: data.skills } : {})
     };
   } catch (error) {
     console.error('Error fetching user:', error);

@@ -1,297 +1,348 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import Header from '@/components/layout/Header';
-import PageTransition from '@/components/layout/PageTransition';
-import PostDetail from '@/components/post/PostDetail';
-import CommentSection from '@/components/CommentSection';
-import RelatedPosts from '@/components/post/RelatedPosts';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import { PostDetail as PostDetailType, Comment } from '@/types/api';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { formatDistanceToNow } from 'date-fns';
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import {
+  BookmarkIcon,
+  HeartIcon,
+  MessageSquare,
+  Share2Icon,
+  ThumbsDown,
+  ThumbsUp,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Reply,
+  UserRound,
+  Calendar,
+  Clock,
+  Link2,
+  MapPin,
+  Tag,
+  Eye,
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { commentService } from '@/services/commentService';
+import { postService } from '@/services/postService';
+import { userService } from '@/services/userService';
+import { Post, Comment } from '@/types/api';
 
-const mockPostDetail: PostDetailType = {
-  id: '1',
-  title: 'How I scaled my SaaS startup to 10,000 users in 6 months',
-  content: `
-    <p>When I first launched my SaaS product, I had no idea if anyone would use it. The first month was slow - only 50 sign-ups. But I kept iterating based on user feedback.</p>
-    
-    <p>Here's what worked for us:</p>
-    
-    <ol>
-      <li><strong>Content marketing</strong> - We wrote detailed guides solving problems our target users had</li>
-      <li><strong>Community engagement</strong> - We became active in relevant communities and provided value</li>
-      <li><strong>Strategic partnerships</strong> - We integrated with complementary tools</li>
-      <li><strong>Focus on retention</strong> - We made sure existing users were happy before pursuing growth</li>
-    </ol>
-    
-    <p>The growth wasn't overnight. Month 2: 150 users. Month 3: 450 users. Month 4: 1,200 users. Month 5: 4,000 users. Month 6: 10,200 users.</p>
-    
-    <p>Key lesson: Growth compounds when you focus on delivering real value.</p>
-  `,
-  author: {
-    id: 'user1',
-    name: 'Sarah Chen',
-    role: 'Founder & CEO',
-    avatar: 'https://ui-avatars.com/api/?name=Sarah+Chen',
-  },
-  category: 'Growth Strategies',
-  upvotes: 247,
-  downvotes: 5,
-  commentCount: 42,
-  timeAgo: '2d ago',
-  createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  tags: ['saas', 'growth', 'marketing', 'founders'],
-  imageUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c',
-  views: 1250,
-  shares: 89,
-  isBookmarked: false,
-  isUpvoted: false,
-  isDownvoted: false,
-  comments: [],
-};
+interface PostDetailProps {
+  post: Post;
+}
+
+interface CommentProps {
+  comment: Comment;
+  replies?: Comment[];
+  onReply?: (content: string, parentId: string) => void;
+}
 
 const PostDetailPage = () => {
   const { postId } = useParams<{ postId: string }>();
+  const auth = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [post, setPost] = useState<PostDetailType | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchPostDetails = async () => {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        setTimeout(() => {
-          const postData = {...mockPostDetail, comments: []};
-          setPost(postData);
-          setIsLoading(false);
-        }, 800);
-      } catch (err) {
-        setError('Failed to load post details. Please try again.');
-        setIsLoading(false);
-      }
-    };
+  const [commentContent, setCommentContent] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [replyToComment, setReplyToComment] = useState<string | null>(null);
 
-    if (postId) {
-      fetchPostDetails();
-    }
-  }, [postId]);
+  const { data: post, isLoading: postLoading, refetch: refetchPost } = useQuery({
+    queryKey: ['post', postId],
+    queryFn: () => postService.getPost(postId || ''),
+    enabled: !!postId,
+  });
 
-  const handleVote = (type: 'up' | 'down') => {
-    if (!post) return;
-    
-    setPost(prev => {
-      if (!prev) return prev;
-      
-      if ((type === 'up' && prev.isUpvoted) || (type === 'down' && prev.isDownvoted)) {
-        return {
-          ...prev,
-          isUpvoted: type === 'up' ? false : prev.isUpvoted,
-          isDownvoted: type === 'down' ? false : prev.isDownvoted,
-          upvotes: type === 'up' ? prev.upvotes - 1 : prev.upvotes,
-          downvotes: type === 'down' ? prev.downvotes - 1 : prev.downvotes
-        };
-      } else {
-        const wasUpvoted = prev.isUpvoted;
-        const wasDownvoted = prev.isDownvoted;
-        
-        return {
-          ...prev,
-          isUpvoted: type === 'up',
-          isDownvoted: type === 'down',
-          upvotes: type === 'up' 
-            ? prev.upvotes + 1 
-            : (wasUpvoted ? prev.upvotes - 1 : prev.upvotes),
-          downvotes: type === 'down' 
-            ? prev.downvotes + 1 
-            : (wasDownvoted ? prev.downvotes - 1 : prev.downvotes)
-        };
-      }
-    });
-  };
+  const { data: commentsData, isLoading: commentsLoading, refetch: refetchComments } = useQuery({
+    queryKey: ['comments', postId],
+    queryFn: () => commentService.getComments(postId || ''),
+    enabled: !!postId,
+  });
 
-  const handleSave = () => {
-    if (!post) return;
-    
-    setPost(prev => {
-      if (!prev) return prev;
-      return { ...prev, isBookmarked: !prev.isBookmarked };
-    });
-    
-    toast({
-      title: post.isBookmarked ? 'Post removed from saved' : 'Post saved',
-      description: post.isBookmarked 
-        ? 'This post has been removed from your saved items' 
-        : 'This post has been added to your saved items',
-    });
-  };
-
-  const handleShare = () => {
-    if (!post) return;
-    
-    navigator.clipboard.writeText(window.location.href);
-    
-    setPost(prev => {
-      if (!prev) return prev;
-      return { ...prev, shares: prev.shares + 1 };
-    });
-    
-    toast({
-      title: 'Link copied',
-      description: 'Post link has been copied to clipboard',
-    });
-  };
-
-  const handleAddComment = async (content: string, parentId?: string): Promise<void> => {
-    if (!post) return;
-    
-    const newComment: Comment = {
-      id: `comment-${Date.now()}`,
-      content,
+  const { data: author, isLoading: authorLoading } = useQuery({
+    queryKey: ['author', post?.author.id],
+    queryFn: () => userService.getUser(post?.author.id || ''),
+    enabled: !!post?.author.id,
+  });
+  
+  // Function to convert API Comment type to service Comment type
+  const convertComments = (apiComments: any[]): any[] => {
+    return apiComments.map(comment => ({
+      ...comment,
       author: {
-        id: 'currentUser',
-        name: 'Current User',
-        role: 'User',
-        avatar: 'https://ui-avatars.com/api/?name=Current+User',
-      },
-      createdAt: new Date().toISOString(),
-      timeAgo: 'just now',
-      upvotes: 0,
-      downvotes: 0,
-      isUpvoted: false,
-      isDownvoted: false,
-      replies: [],
-    };
-    
-    setPost(prev => {
-      if (!prev) return prev;
-      
-      const currentComments = prev.comments || [];
-      
-      if (parentId) {
-        const updatedComments = currentComments.map(comment => 
-          comment.id === parentId 
-            ? { ...comment, replies: [...(comment.replies || []), newComment] } 
-            : comment
-        );
-        
-        return {
-          ...prev,
-          commentCount: prev.commentCount + 1,
-          comments: updatedComments
-        };
-      } else {
-        return {
-          ...prev,
-          commentCount: prev.commentCount + 1,
-          comments: [...currentComments, newComment]
-        };
+        ...comment.author,
+        role: comment.author.role || 'user' // Ensure role is always present
       }
-    });
+    }));
   };
 
-  if (isLoading) {
+  // Submit comment handler
+  const handleCommentSubmit = async (content: string, parentId?: string) => {
+    if (!auth.user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to comment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmittingComment(true);
+
+    try {
+      const newComment = await commentService.createComment(postId, content, parentId);
+      
+      // Update comments state
+      if (parentId) {
+        // Add reply to parent comment
+        setComments(prevComments => 
+          prevComments.map(comment => 
+            comment.id === parentId 
+              ? { 
+                  ...comment, 
+                  replies: [...(comment.replies || []), convertComments([newComment])[0]] 
+                }
+              : comment
+          )
+        );
+      } else {
+        // Add top-level comment
+        setComments(prevComments => [...prevComments, convertComments([newComment])[0]]);
+      }
+
+      setCommentContent("");
+      setReplyToComment(null);
+
+      toast({
+        title: "Comment Posted",
+        description: "Your comment has been posted successfully."
+      });
+      
+      // Refetch comments to update the UI
+      refetchComments();
+    } catch (error) {
+      console.error("Error submitting comment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to submit your comment. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  const handleReply = (commentId: string) => {
+    setReplyToComment(commentId);
+  };
+
+  const handleCancelReply = () => {
+    setReplyToComment(null);
+    setCommentContent('');
+  };
+
+  const renderCommentForm = (parentId: string | null = null) => (
+    <div className="mb-4">
+      <Label htmlFor="comment" className="text-sm">
+        {parentId ? "Reply to comment" : "Add a comment"}
+      </Label>
+      <Textarea
+        id="comment"
+        placeholder="Write your comment here..."
+        value={commentContent}
+        onChange={(e) => setCommentContent(e.target.value)}
+        className="mt-2 resize-none"
+      />
+      <div className="flex justify-end mt-2">
+        {parentId && (
+          <Button variant="ghost" size="sm" onClick={handleCancelReply} className="mr-2">
+            Cancel
+          </Button>
+        )}
+        <Button
+          size="sm"
+          onClick={() => handleCommentSubmit(commentContent, parentId || undefined)}
+          disabled={isSubmittingComment}
+        >
+          {isSubmittingComment ? "Submitting..." : "Submit Comment"}
+        </Button>
+      </div>
+    </div>
+  );
+
+  const CommentComponent: React.FC<CommentProps> = ({ comment, replies, onReply }) => {
+    const [isReplying, setIsReplying] = useState(false);
+    const timeAgo = formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true });
+
     return (
-      <PageTransition>
-        <div className="min-h-screen flex flex-col">
-          <Header title="Post" />
-          
-          <main className="flex-1 container py-6 px-4 max-w-5xl">
-            <div className="mb-6">
-              <Skeleton className="h-8 w-40 mb-2" />
-              <Skeleton className="h-5 w-32" />
+      <div className="mb-4">
+        <div className="flex items-start space-x-3">
+          <Avatar>
+            <AvatarImage src={comment.author.avatar || "https://github.com/shadcn.png"} alt={comment.author.name} />
+            <AvatarFallback>{comment.author.name.slice(0, 2)}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 space-y-1">
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium">{comment.author.name}</div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 w-8 p-0">
+                    <span className="sr-only">Open dropdown menu</span>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                  <DropdownMenuItem>
+                    <Edit className="mr-2 h-4 w-4" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>Report</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-            
-            <Skeleton className="h-72 w-full mb-8" />
-            
-            <div className="space-y-4 mb-8">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
+            <p className="text-sm text-muted-foreground">
+              {comment.content}
+            </p>
+            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+              <time dateTime={comment.createdAt} className="block">
+                {timeAgo}
+              </time>
+              <span>•</span>
+              <button className="hover:underline">Upvote</button>
+              <span>•</span>
+              <button className="hover:underline">Downvote</button>
+              <span>•</span>
+              {onReply && (
+                <button className="hover:underline" onClick={() => {
+                  setIsReplying(true);
+                  onReply(comment.id);
+                }}>
+                  Reply
+                </button>
+              )}
             </div>
-            
-            <Skeleton className="h-36 w-full" />
-          </main>
+          </div>
         </div>
-      </PageTransition>
+        {replies && replies.length > 0 && (
+          <div className="ml-8">
+            {replies.map(reply => (
+              <CommentComponent key={reply.id} comment={reply} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  if (postLoading) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>
+            <Skeleton className="h-5 w-40" />
+          </CardTitle>
+          <CardDescription>
+            <Skeleton className="h-4 w-60" />
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-4 w-full" count={5} />
+        </CardContent>
+      </Card>
     );
   }
 
-  if (error || !post) {
+  if (!post) {
     return (
-      <PageTransition>
-        <div className="min-h-screen flex flex-col">
-          <Header title="Post" />
-          
-          <main className="flex-1 container py-6 px-4 max-w-5xl">
-            <div className="flex flex-col items-center justify-center h-64 text-center">
-              <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-              <h2 className="text-2xl font-bold mb-2">Post Not Found</h2>
-              <p className="text-muted-foreground mb-6">
-                {error || "We couldn't find the post you're looking for."}
-              </p>
-              <Button onClick={() => navigate('/')}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Home
-              </Button>
-            </div>
-          </main>
-        </div>
-      </PageTransition>
+      <Card className="w-full">
+        <CardContent>
+          Post not found
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <PageTransition>
-      <div className="min-h-screen flex flex-col">
-        <Header title={post?.title || 'Post'} />
-        
-        <main className="flex-1 container py-6 px-4 md:px-6 max-w-5xl">
-          <Button 
-            variant="ghost" 
-            className="mb-4"
-            onClick={() => navigate(-1)}
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle>{post.title}</CardTitle>
+        <CardDescription>
+          By {post.author.name} - {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p>{post.content}</p>
+        <Separator />
+        <div className="flex space-x-2">
+          <Badge variant="secondary"><Tag className="mr-2 h-4 w-4" /> {post.category}</Badge>
+          <Badge variant="outline"><Eye className="mr-2 h-4 w-4" /> {post.views || 0} Views</Badge>
+        </div>
+        <Separator />
+        <div className="flex justify-between items-center">
+          <div className="flex space-x-4">
+            <Button variant="ghost">
+              <ThumbsUp className="mr-2 h-4 w-4" /> Upvote
+            </Button>
+            <Button variant="ghost">
+              <ThumbsDown className="mr-2 h-4 w-4" /> Downvote
+            </Button>
+            <Button variant="ghost">
+              <MessageSquare className="mr-2 h-4 w-4" /> Comment
+            </Button>
+            <Button variant="ghost">
+              <Share2Icon className="mr-2 h-4 w-4" /> Share
+            </Button>
+          </div>
+          <Button variant="ghost">
+            <BookmarkIcon className="mr-2 h-4 w-4" /> Bookmark
           </Button>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <PostDetail 
-              post={post} 
-              onVote={handleVote}
-              onSave={handleSave}
-              onShare={handleShare}
-            />
-
-            <div className="mt-8 border-t pt-8">
-              <h2 className="text-xl font-semibold mb-6">Comments ({post.commentCount})</h2>
-              <CommentSection 
-                postId={post.id}
-                comments={post.comments || []}
-                onAddComment={handleAddComment}
+        </div>
+        <Separator />
+        {renderCommentForm()}
+        <ScrollArea className="h-[300px] w-full">
+          <div className="space-y-4">
+            {commentsData && convertComments(commentsData).map(comment => (
+              <CommentComponent
+                key={comment.id}
+                comment={comment}
+                replies={comment.replies}
+                onReply={handleReply}
               />
-            </div>
-
-            <div className="mt-12 border-t pt-8">
-              <h2 className="text-xl font-semibold mb-6">Related Posts</h2>
-              <RelatedPosts category={post.category} tags={post.tags} currentPostId={post.id} />
-            </div>
-          </motion.div>
-        </main>
-      </div>
-    </PageTransition>
+            ))}
+          </div>
+        </ScrollArea>
+      </CardContent>
+    </Card>
   );
 };
 

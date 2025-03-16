@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Shell } from '@/components/ui/shell';
@@ -9,8 +10,9 @@ import AdminContent from '@/components/admin/AdminContent';
 import AdminSettings from '@/components/admin/AdminSettings';
 import { useRequireAuth } from '@/hooks/use-auth-route';
 import { Spinner } from '@/components/ui/spinner';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async'; // Updated to react-helmet-async
 import adminService from '@/services/api/admin';
+import { AdminStats as AdminStatsType, AdminUser } from '@/types/api'; // Import the type, not the value
 
 const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -81,11 +83,11 @@ const AdminPage: React.FC = () => {
           </TabsList>
           
           <TabsContent value="dashboard">
-            {stats ? <AdminStats stats={stats} /> : <AdminStats stats={{} as AdminStats} />}
+            {stats ? <AdminStats stats={stats as AdminStatsType} /> : <AdminStats stats={{} as AdminStatsType} />}
           </TabsContent>
           
           <TabsContent value="users">
-            <AdminUsers users={users || []} />
+            {users && <AdminUsers users={users} />}
           </TabsContent>
           
           <TabsContent value="content">
