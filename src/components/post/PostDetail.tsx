@@ -41,7 +41,7 @@ const PostDetail = ({ post, onVote, onSave, onShare }: PostDetailProps) => {
             </div>
             <div className="flex items-center">
               <Eye className="mr-1 h-4 w-4" />
-              <span>{post.views.toLocaleString()} views</span>
+              <span>{post.views?.toLocaleString()} views</span>
             </div>
             <Badge variant="secondary" className="ml-1">
               {post.category}
@@ -86,7 +86,7 @@ const PostDetail = ({ post, onVote, onSave, onShare }: PostDetailProps) => {
                   size="sm" 
                   className={cn(
                     "px-2 h-8",
-                    post.isVoted === 'up' && "text-green-600 dark:text-green-500 font-medium"
+                    post.isUpvoted && "text-green-600 dark:text-green-500 font-medium"
                   )}
                   onClick={() => onVote('up')}
                 >
@@ -104,7 +104,7 @@ const PostDetail = ({ post, onVote, onSave, onShare }: PostDetailProps) => {
                   size="sm" 
                   className={cn(
                     "px-2 h-8",
-                    post.isVoted === 'down' && "text-red-600 dark:text-red-500 font-medium"
+                    post.isDownvoted && "text-red-600 dark:text-red-500 font-medium"
                   )}
                   onClick={() => onVote('down')}
                 >
@@ -155,11 +155,11 @@ const PostDetail = ({ post, onVote, onSave, onShare }: PostDetailProps) => {
                 size="sm" 
                 className={cn(
                   "h-8 px-3",
-                  post.isSaved && "text-primary"
+                  post.isBookmarked && "text-primary"
                 )}
                 onClick={onSave}
               >
-                {post.isSaved ? (
+                {post.isBookmarked ? (
                   <>
                     <BookmarkCheck className="h-4 w-4 mr-2" />
                     <span className="hidden sm:inline">Saved</span>
@@ -172,7 +172,7 @@ const PostDetail = ({ post, onVote, onSave, onShare }: PostDetailProps) => {
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{post.isSaved ? 'Unsave' : 'Save'}</TooltipContent>
+            <TooltipContent>{post.isBookmarked ? 'Unsave' : 'Save'}</TooltipContent>
           </Tooltip>
         </div>
       </footer>

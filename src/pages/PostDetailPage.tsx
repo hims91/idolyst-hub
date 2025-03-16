@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -13,7 +12,6 @@ import { ArrowLeft, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { PostDetail as PostDetailType, Comment } from '@/types/api';
 
-// Mock data for now - will be replaced with real API calls
 const mockPostDetail: PostDetailType = {
   id: '1',
   title: 'How I scaled my SaaS startup to 10,000 users in 6 months',
@@ -45,13 +43,15 @@ const mockPostDetail: PostDetailType = {
   commentCount: 42,
   timeAgo: '2d ago',
   createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+  updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
   tags: ['saas', 'growth', 'marketing', 'founders'],
   imageUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c',
   views: 1250,
   shares: 89,
-  isSaved: false,
-  isVoted: null,
-  comments: [], // Initialize with empty array to avoid undefined
+  isBookmarked: false,
+  isUpvoted: false,
+  isDownvoted: false,
+  comments: [],
 };
 
 const PostDetailPage = () => {
@@ -68,9 +68,8 @@ const PostDetailPage = () => {
       setError(null);
       
       try {
-        // In real implementation, fetch from API
         setTimeout(() => {
-          const postData = {...mockPostDetail, comments: []}; // Ensure comments is initialized as empty array
+          const postData = {...mockPostDetail, comments: []};
           setPost(postData);
           setIsLoading(false);
         }, 800);
@@ -91,21 +90,28 @@ const PostDetailPage = () => {
     setPost(prev => {
       if (!prev) return prev;
       
-      if (prev.isVoted === type) {
-        // Remove vote
+      if ((type === 'up' && prev.isUpvoted) || (type === 'down' && prev.isDownvoted)) {
         return {
           ...prev,
-          isVoted: null,
+          isUpvoted: type === 'up' ? false : prev.isUpvoted,
+          isDownvoted: type === 'down' ? false : prev.isDownvoted,
           upvotes: type === 'up' ? prev.upvotes - 1 : prev.upvotes,
           downvotes: type === 'down' ? prev.downvotes - 1 : prev.downvotes
         };
       } else {
-        // Change vote
+        const wasUpvoted = prev.isUpvoted;
+        const wasDownvoted = prev.isDownvoted;
+        
         return {
           ...prev,
-          isVoted: type,
-          upvotes: type === 'up' ? prev.upvotes + 1 : prev.isVoted === 'up' ? prev.upvotes - 1 : prev.upvotes,
-          downvotes: type === 'down' ? prev.downvotes + 1 : prev.isVoted === 'down' ? prev.downvotes - 1 : prev.downvotes
+          isUpvoted: type === 'up',
+          isDownvoted: type === 'down',
+          upvotes: type === 'up' 
+            ? prev.upvotes + 1 
+            : (wasUpvoted ? prev.upvotes - 1 : prev.upvotes),
+          downvotes: type === 'down' 
+            ? prev.downvotes + 1 
+            : (wasDownvoted ? prev.downvotes - 1 : prev.downvotes)
         };
       }
     });
@@ -116,12 +122,12 @@ const PostDetailPage = () => {
     
     setPost(prev => {
       if (!prev) return prev;
-      return { ...prev, isSaved: !prev.isSaved };
+      return { ...prev, isBookmarked: !prev.isBookmarked };
     });
     
     toast({
-      title: post.isSaved ? 'Post removed from saved' : 'Post saved',
-      description: post.isSaved 
+      title: post.isBookmarked ? 'Post removed from saved' : 'Post saved',
+      description: post.isBookmarked 
         ? 'This post has been removed from your saved items' 
         : 'This post has been added to your saved items',
     });
@@ -130,10 +136,8 @@ const PostDetailPage = () => {
   const handleShare = () => {
     if (!post) return;
     
-    // Copy to clipboard
     navigator.clipboard.writeText(window.location.href);
     
-    // Update share count
     setPost(prev => {
       if (!prev) return prev;
       return { ...prev, shares: prev.shares + 1 };
@@ -161,17 +165,15 @@ const PostDetailPage = () => {
       timeAgo: 'just now',
       upvotes: 0,
       downvotes: 0,
-      replies: [], // Initialize with empty array
+      replies: [],
     };
     
     setPost(prev => {
       if (!prev) return prev;
       
-      // Make sure comments is initialized
       const currentComments = prev.comments || [];
       
       if (parentId) {
-        // Add reply to parent comment
         const updatedComments = currentComments.map(comment => 
           comment.id === parentId 
             ? { ...comment, replies: [...(comment.replies || []), newComment] } 
@@ -184,7 +186,6 @@ const PostDetailPage = () => {
           comments: updatedComments
         };
       } else {
-        // Add new top-level comment
         return {
           ...prev,
           commentCount: prev.commentCount + 1,

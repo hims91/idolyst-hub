@@ -25,7 +25,12 @@ const mockRelatedPosts: Post[] = [
     commentCount: 23,
     timeAgo: '5d ago',
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     tags: ['growth-hacking', 'early-stage', 'marketing'],
+    comments: [],
+    isUpvoted: false,
+    isDownvoted: false,
+    isBookmarked: false
   },
   {
     id: '3',
@@ -43,7 +48,12 @@ const mockRelatedPosts: Post[] = [
     commentCount: 35,
     timeAgo: '1w ago',
     createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
     tags: ['customer-acquisition', 'organic-growth', 'marketing'],
+    comments: [],
+    isUpvoted: false,
+    isDownvoted: false,
+    isBookmarked: false
   },
   {
     id: '4',
@@ -61,7 +71,12 @@ const mockRelatedPosts: Post[] = [
     commentCount: 19,
     timeAgo: '3d ago',
     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     tags: ['product-led-growth', 'saas', 'product-strategy'],
+    comments: [],
+    isUpvoted: false,
+    isDownvoted: false,
+    isBookmarked: false
   },
 ];
 

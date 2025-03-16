@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -278,31 +277,38 @@ const UserProfile: React.FC<UserProfileProps> = ({
         </TabsList>
         
         <TabsContent value="posts" className="mt-6">
-          {posts.length > 0 ? (
-            <div className="space-y-6">
-              {posts.map(post => (
-                <PostCard key={post.id} post={post} />
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                <h3 className="text-lg font-medium mb-2">No posts yet</h3>
-                <p className="text-muted-foreground">
-                  {isOwnProfile 
-                    ? "You haven't created any posts yet. Share your thoughts with the community!" 
-                    : `${profile.name} hasn't created any posts yet.`}
-                </p>
-                
-                {isOwnProfile && (
-                  <Button className="mt-4" onClick={() => navigate('/post/create')}>
-                    Create a Post
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold mb-4">Recent Posts</h2>
+            {posts.length > 0 ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {posts.slice(0, 4).map((post) => (
+                  <PostCard 
+                    key={post.id} 
+                    post={{
+                      id: post.id,
+                      title: post.title,
+                      content: post.content,
+                      author: {
+                        id: post.author.id,
+                        name: post.author.name,
+                        avatar: post.author.avatar,
+                        role: post.author.role || 'Member'
+                      },
+                      category: post.category,
+                      createdAt: post.createdAt,
+                      timeAgo: post.timeAgo,
+                      upvotes: post.upvotes,
+                      downvotes: post.downvotes,
+                      commentCount: post.commentCount
+                    }}
+                    showCategory
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">No posts yet.</p>
+            )}
+          </div>
         </TabsContent>
         
         <TabsContent value="badges" className="mt-6">
@@ -310,7 +316,10 @@ const UserProfile: React.FC<UserProfileProps> = ({
         </TabsContent>
         
         <TabsContent value="challenges" className="mt-6">
-          <UserChallenges userId={profile.id} />
+          <div className="mt-12">
+            <h2 className="text-xl font-semibold mb-4">Challenges</h2>
+            <UserChallenges userId={profile.id} />
+          </div>
         </TabsContent>
         
         <TabsContent value="activity" className="mt-6">

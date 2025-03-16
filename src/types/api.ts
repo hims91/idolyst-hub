@@ -41,7 +41,6 @@ export interface Post {
   imageUrl?: string;
   views?: number;
   shares?: number;
-  isSaved?: boolean;
 }
 
 export interface Comment {
@@ -95,8 +94,8 @@ export interface AdminPost {
   } | string;
   category: string;
   status: string;
-  comments: number;
   published: string;
+  comments: number;
 }
 
 export interface AdminUser {
@@ -109,10 +108,10 @@ export interface AdminUser {
 }
 
 export interface EmailSettingsForm {
-  marketingEmails: boolean;
-  notificationEmails: boolean;
-  weeklyDigest: boolean;
-  newFollowerAlert: boolean;
+  marketingEmails?: boolean;
+  notificationEmails?: boolean;
+  weeklyDigest?: boolean;
+  newFollowerAlert?: boolean;
   smtpHost?: string;
   smtpPort?: string;
   smtpUser?: string;
@@ -165,6 +164,7 @@ export interface EventFilter {
   page?: number;
   status?: string;
   query?: string;
+  limit?: number;
 }
 
 export interface EventFormData {
@@ -184,7 +184,6 @@ export interface EventFormData {
 // Post Details
 export interface PostDetail extends Post {
   relatedPosts?: Post[];
-  tags?: string[];
 }
 
 // Message System
@@ -219,13 +218,4 @@ export interface Notification {
   createdAt: string;
   linkTo?: string;
   sender?: User;
-}
-
-// Gamification - moved to src/types/gamification.ts
-export interface UserLevel {
-  level: number;
-  title: string;
-  pointsRequired: number;
-  pointsToNextLevel: number;
-  progressPercentage: number;
 }

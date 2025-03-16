@@ -16,7 +16,7 @@ const EventsPage: React.FC = () => {
     queryFn: () => eventService.getEvents(currentPage, 9),
   });
 
-  const { data: categories } = useQuery({
+  const { data: categories, isLoading: categoriesLoading } = useQuery({
     queryKey: ['eventCategories'],
     queryFn: () => eventService.getEventCategories(),
     initialData: []
@@ -45,6 +45,7 @@ const EventsPage: React.FC = () => {
             totalEvents={events?.total}
             currentPage={events?.currentPage}
             totalPages={events?.totalPages}
+            onPageChange={setCurrentPage}
           />
         )}
       </Shell>

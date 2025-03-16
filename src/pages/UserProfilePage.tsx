@@ -3,8 +3,8 @@ import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthSession } from '@/hooks/useAuthSession';
-import { getUserProfile, getUserPosts, followUser, unfollowUser } from '@/services/userService';
-import { gamificationService } from '@/services/gamificationService';
+import { getUserProfile, getUserPosts } from '@/services/userService';
+import gamificationService from '@/services/gamificationService';
 import PageTransition from '@/components/layout/PageTransition';
 import Header from '@/components/layout/Header';
 import { Spinner } from '@/components/ui/spinner';
@@ -17,7 +17,8 @@ const UserProfilePage = () => {
   const { toast } = useToast();
   const auth = useAuthSession();
   const isAuthenticated = Boolean(auth?.isValidSession);
-  const [followModalType, setFollowModalType] = useState<'followers' | 'following' | null>(null);
+  const [followModalOpen, setFollowModalOpen] = useState(false);
+  const [followModalType, setFollowModalType] = useState<'followers' | 'following'>('followers');
 
   const { data: userProfile, isLoading: profileLoading, refetch: refetchProfile } = useQuery({
     queryKey: ['user-profile', userId],
@@ -80,6 +81,11 @@ const UserProfilePage = () => {
     }
   };
 
+  const openFollowModal = (type: 'followers' | 'following') => {
+    setFollowModalType(type);
+    setFollowModalOpen(true);
+  };
+
   if (isLoading) {
     return (
       <PageTransition>
@@ -111,7 +117,7 @@ const UserProfilePage = () => {
     );
   }
 
-  const isOwnProfile = auth?.userId === userProfile.id;
+  const isOwnProfile = auth?.user?.id === userProfile.id;
 
   return (
     <PageTransition>
@@ -127,17 +133,19 @@ const UserProfilePage = () => {
             isOwnProfile={isOwnProfile}
             onFollow={handleFollowUser}
             onUnfollow={handleFollowUser}
+            onFollowersClick={() => openFollowModal('followers')}
+            onFollowingClick={() => openFollowModal('following')}
           />
         </main>
       </div>
       
       {/* Followers/Following Modal */}
-      {followModalType && (
+      {followModalOpen && (
         <UserFollowModal
           userId={userId || ''}
+          isOpen={followModalOpen}
+          onClose={() => setFollowModalOpen(false)}
           type={followModalType}
-          isOpen={!!followModalType}
-          onClose={() => setFollowModalType(null)}
         />
       )}
     </PageTransition>

@@ -1,49 +1,47 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { userService } from '@/services/api/user';
+import { userService } from '@/services/userService';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
-import { useAuth } from '@/context/AuthContext';
+import { useAuthSession } from '@/hooks/useAuthSession';
 import { useToast } from '@/components/ui/use-toast';
-import { useRequireAuth } from '@/hooks/use-auth-route';
 
 interface UserFollowModalProps {
   userId: string;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  activeTab?: 'followers' | 'following';
+  isOpen: boolean;
+  onClose: () => void;
+  type?: 'followers' | 'following';
 }
 
 const UserFollowModal: React.FC<UserFollowModalProps> = ({
   userId,
-  open,
-  onOpenChange,
-  activeTab = 'followers'
+  isOpen,
+  onClose,
+  type = 'followers'
 }) => {
-  const [tab, setTab] = useState<'followers' | 'following'>(activeTab);
-  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'followers' | 'following'>(type);
+  const auth = useAuthSession();
   const { toast } = useToast();
-  const auth = useRequireAuth();
-  const currentUserId = user?.id;
+  const currentUserIsAuthenticated = auth?.isValidSession || false;
 
   const { data: followers, isLoading: followersLoading } = useQuery({
     queryKey: ['followers', userId],
-    queryFn: () => userService.getUserFollowers(userId),
-    enabled: open && tab === 'followers'
+    queryFn: () => userService.getFollowers(userId),
+    enabled: isOpen && activeTab === 'followers'
   });
 
   const { data: following, isLoading: followingLoading } = useQuery({
     queryKey: ['following', userId],
-    queryFn: () => userService.getUserFollowing(userId),
-    enabled: open && tab === 'following'
+    queryFn: () => userService.getFollowing(userId),
+    enabled: isOpen && activeTab === 'following'
   });
 
   const handleFollow = async (targetUserId: string) => {
-    if (!currentUserId) {
+    if (!currentUserIsAuthenticated) {
       toast({
         title: "Authentication required",
         description: "Please sign in to follow users",
@@ -68,7 +66,7 @@ const UserFollowModal: React.FC<UserFollowModalProps> = ({
   };
 
   const handleUnfollow = async (targetUserId: string) => {
-    if (!currentUserId) {
+    if (!currentUserIsAuthenticated) {
       toast({
         title: "Authentication required",
         description: "Please sign in to unfollow users",
@@ -93,15 +91,15 @@ const UserFollowModal: React.FC<UserFollowModalProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {tab === 'followers' ? 'Followers' : 'Following'}
+            {activeTab === 'followers' ? 'Followers' : 'Following'}
           </DialogTitle>
         </DialogHeader>
         
-        <Tabs value={tab} onValueChange={(value) => setTab(value as 'followers' | 'following')}>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'followers' | 'following')}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="followers">Followers</TabsTrigger>
             <TabsTrigger value="following">Following</TabsTrigger>
@@ -127,7 +125,7 @@ const UserFollowModal: React.FC<UserFollowModalProps> = ({
                       </div>
                     </div>
                     
-                    {currentUserId && currentUserId !== follower.id && (
+                    {currentUserIsAuthenticated && (
                       <Button 
                         size="sm" 
                         variant={follower.isFollowing ? "outline" : "default"}
@@ -167,7 +165,7 @@ const UserFollowModal: React.FC<UserFollowModalProps> = ({
                       </div>
                     </div>
                     
-                    {currentUserId && currentUserId !== user.id && (
+                    {currentUserIsAuthenticated && (
                       <Button 
                         size="sm" 
                         variant="outline"

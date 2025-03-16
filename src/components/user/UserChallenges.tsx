@@ -1,167 +1,171 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { gamificationService } from '@/services/gamificationService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { UserChallenge, Challenge } from '@/types/gamification';
-import { Target, Check, Clock, Award } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Spinner } from '@/components/ui/spinner';
+import { UserChallenge } from '@/types/gamification';
+import { useToast } from '@/components/ui/use-toast';
 
 interface UserChallengesProps {
-  userChallenges: UserChallenge[];
-  availableChallenges?: Challenge[];
-  onJoinChallenge?: (challengeId: string) => void;
+  userId: string;
 }
 
-const UserChallenges: React.FC<UserChallengesProps> = ({ 
-  userChallenges, 
-  availableChallenges = [],
-  onJoinChallenge
-}) => {
-  // Filter challenges
-  const activeUserChallenges = userChallenges.filter(
-    challenge => !challenge.isCompleted
-  );
-  const completedUserChallenges = userChallenges.filter(
-    challenge => challenge.isCompleted
-  );
+const UserChallenges: React.FC<UserChallengesProps> = ({ userId }) => {
+  const [activeTab, setActiveTab] = useState<'all' | 'completed' | 'active'>('all');
+  const { toast } = useToast();
 
-  // Render no challenges state
-  if (userChallenges.length === 0 && availableChallenges.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <Target className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-          <h3 className="text-lg font-medium mb-2">No Challenges Available</h3>
-          <p className="text-muted-foreground">
-            There are currently no challenges available. Check back later!
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const { data: availableChallenges, isLoading: availableLoading } = useQuery({
+    queryKey: ['challenges', 'available'],
+    queryFn: () => gamificationService.getAvailableChallenges(),
+    enabled: activeTab === 'all',
+  });
+
+  const { data: userChallenges, isLoading: userChallengesLoading } = useQuery({
+    queryKey: ['challenges', userId, false],
+    queryFn: () => gamificationService.getUserChallenges(userId, false),
+    enabled: activeTab === 'active' || activeTab === 'all',
+  });
+
+  const { data: completedChallenges, isLoading: completedLoading } = useQuery({
+    queryKey: ['challenges', userId, true],
+    queryFn: () => gamificationService.getUserChallenges(userId, true),
+    enabled: activeTab === 'completed' || activeTab === 'all',
+  });
+
+  const isLoading = availableLoading || userChallengesLoading || completedLoading;
+
+  // Function to determine which challenges to display
+  const getDisplayChallenges = () => {
+    if (activeTab === 'all') {
+      const userChallengeIds = new Set((userChallenges || []).map(c => c.id));
+      const completedIds = new Set((completedChallenges || []).map(c => c.id));
+      
+      // Add available challenges not yet joined
+      const allChallenges = [
+        ...(userChallenges || []),
+        ...(completedChallenges || []),
+        ...((availableChallenges || [])
+          .filter(c => !userChallengeIds.has(c.id) && !completedIds.has(c.id))
+          .map(c => ({ ...c, progress: 0, isCompleted: false })))
+      ];
+      
+      return allChallenges;
+    } else if (activeTab === 'active') {
+      return userChallenges || [];
+    } else {
+      return completedChallenges || [];
+    }
+  };
+
+  const handleJoinChallenge = async (challengeId: string) => {
+    try {
+      await gamificationService.joinChallenge(userId, challengeId);
+      toast({
+        title: 'Challenge Joined',
+        description: 'You have successfully joined this challenge.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to join the challenge. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const getChallengeStatusBadge = (challenge: UserChallenge) => {
+    if (challenge.isCompleted) {
+      return (
+        <Badge variant="secondary" className="ml-2 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+          Completed
+        </Badge>
+      );
+    } else if (challenge.progress > 0) {
+      return (
+        <Badge variant="secondary" className="ml-2">
+          In Progress ({challenge.progress}%)
+        </Badge>
+      );
+    } else {
+      return (
+        <Badge variant="outline" className="ml-2">
+          Not Started
+        </Badge>
+      );
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      {activeUserChallenges.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Active Challenges</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {activeUserChallenges.map(userChallenge => (
-              <div key={userChallenge.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-medium">{userChallenge.challenge?.title}</h3>
-                    <p className="text-sm text-muted-foreground">{userChallenge.challenge?.description}</p>
-                  </div>
-                  <div className="bg-primary/10 text-primary font-medium px-2 py-1 rounded text-sm">
-                    {userChallenge.challenge?.points} Points
-                  </div>
+    <div className="space-y-4">
+      <div className="flex space-x-2 mb-4">
+        <Button 
+          variant={activeTab === 'all' ? 'default' : 'outline'} 
+          size="sm"
+          onClick={() => setActiveTab('all')}
+        >
+          All
+        </Button>
+        <Button 
+          variant={activeTab === 'active' ? 'default' : 'outline'} 
+          size="sm"
+          onClick={() => setActiveTab('active')}
+        >
+          Active
+        </Button>
+        <Button 
+          variant={activeTab === 'completed' ? 'default' : 'outline'} 
+          size="sm"
+          onClick={() => setActiveTab('completed')}
+        >
+          Completed
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center p-8">
+          <Spinner size="lg" />
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {getDisplayChallenges().map(challenge => (
+            <Card key={challenge.id} className="h-full">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-base">
+                    {challenge.title}
+                    {getChallengeStatusBadge(challenge)}
+                  </CardTitle>
                 </div>
-                
-                <div className="mt-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Progress</span>
-                    <span>{userChallenge.progress}%</span>
-                  </div>
-                  <Progress value={userChallenge.progress} className="h-2" />
-                </div>
-                
-                <div className="mt-2 text-xs text-muted-foreground">
-                  Joined on {new Date(userChallenge.joinedAt).toLocaleDateString()}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-      
-      {completedUserChallenges.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Completed Challenges</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {completedUserChallenges.map(userChallenge => (
-              <div key={userChallenge.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center">
-                      <Check className="h-4 w-4 text-green-500 mr-2" />
-                      <h3 className="font-medium">{userChallenge.challenge?.title}</h3>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{userChallenge.challenge?.description}</p>
-                  </div>
-                  <div className="bg-primary/10 text-primary font-medium px-2 py-1 rounded text-sm">
-                    {userChallenge.challenge?.points} Points
-                  </div>
-                </div>
-                
-                <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                  <span>Joined on {new Date(userChallenge.joinedAt).toLocaleDateString()}</span>
-                  {userChallenge.completedAt && (
-                    <span>Completed on {new Date(userChallenge.completedAt).toLocaleDateString()}</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-      
-      {availableChallenges.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Available Challenges</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {availableChallenges.map(challenge => (
-              <div key={challenge.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-medium">{challenge.title}</h3>
-                    <p className="text-sm text-muted-foreground">{challenge.description}</p>
-                  </div>
-                  <div className="bg-primary/10 text-primary font-medium px-2 py-1 rounded text-sm">
-                    {challenge.points} Points
-                  </div>
-                </div>
-                
-                {challenge.requirements && (
-                  <div className="mt-2 text-sm">
-                    <strong>Requirements:</strong> {challenge.requirements}
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-3">{challenge.description}</p>
+                {challenge.progress > 0 && (
+                  <div className="mb-3">
+                    <Progress value={challenge.progress} className="h-2" />
                   </div>
                 )}
-                
-                {(challenge.startDate || challenge.endDate) && (
-                  <div className="mt-2 flex items-center text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3 mr-1" />
-                    {challenge.startDate && (
-                      <span>Starts: {new Date(challenge.startDate).toLocaleDateString()}</span>
-                    )}
-                    {challenge.startDate && challenge.endDate && <span className="mx-2">|</span>}
-                    {challenge.endDate && (
-                      <span>Ends: {new Date(challenge.endDate).toLocaleDateString()}</span>
-                    )}
+                <div className="flex justify-between items-center">
+                  <div className="text-sm font-medium">
+                    Reward: {challenge.points} points
                   </div>
-                )}
-                
-                {onJoinChallenge && (
-                  <div className="mt-3">
+                  {!challenge.isCompleted && challenge.progress === 0 && (
                     <Button 
-                      variant="outline" 
                       size="sm" 
-                      onClick={() => onJoinChallenge(challenge.id)}
+                      variant="outline"
+                      onClick={() => handleJoinChallenge(challenge.id)}
                     >
                       Join Challenge
                     </Button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
     </div>
   );

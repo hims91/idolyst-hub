@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { adminService } from '@/services/api/admin';
+import adminService from '@/services/api/admin';
 import { AdminContentState, AdminUser } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
