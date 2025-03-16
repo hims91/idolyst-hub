@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Helmet } from 'react-helmet-async';
 import Events from '@/components/Events';
-import { getEvents, getEventCategories } from '@/services/eventService';
+import * as eventService from '@/services/eventService';
 
 const EventsPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -19,12 +19,12 @@ const EventsPage: React.FC = () => {
 
   const { data: eventsData, isLoading: eventsLoading } = useQuery({
     queryKey: ['events', currentPage],
-    queryFn: () => getEvents({ page: currentPage }),
+    queryFn: () => eventService.getEvents({ page: currentPage }),
   });
 
   const { data: categories, isLoading: categoriesLoading } = useQuery({
     queryKey: ['eventCategories'],
-    queryFn: () => getEventCategories(),
+    queryFn: () => eventService.getEventCategories(),
     initialData: []
   });
 

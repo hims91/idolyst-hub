@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { createEvent, updateEvent, getEventCategories } from '@/services/eventService';
+import * as eventService from '@/services/eventService';
 import { EventFormData, EventWithDetails } from '@/types/api';
 
 const eventFormSchema = z.object({

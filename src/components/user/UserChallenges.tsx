@@ -33,7 +33,7 @@ const UserChallenges: React.FC<UserChallengesProps> = ({ userId }) => {
         const availableChallengesData = await getAvailableChallenges();
         
         // Filter out challenges the user has already joined
-        const userChallengeIds = new Set(userChallengesData.map(uc => uc.challenge_id));
+        const userChallengeIds = new Set(userChallengesData.map(uc => uc.challengeId));
         const filteredAvailableChallenges = availableChallengesData.filter(
           (challenge) => !userChallengeIds.has(challenge.id)
         );
@@ -106,7 +106,7 @@ const UserChallenges: React.FC<UserChallengesProps> = ({ userId }) => {
       if (success) {
         // Update local state
         setUserChallenges(userChallenges.map(uc => 
-          uc.challenge_id === challengeId ? { ...uc, progress } : uc
+          uc.challengeId === challengeId ? { ...uc, progress } : uc
         ));
         
         toast({
@@ -134,10 +134,10 @@ const UserChallenges: React.FC<UserChallengesProps> = ({ userId }) => {
       if (success) {
         // Update local state
         setUserChallenges(userChallenges.map(uc => 
-          uc.challenge_id === challengeId ? { 
+          uc.challengeId === challengeId ? { 
             ...uc, 
-            is_completed: true,
-            completed_at: new Date().toISOString()
+            isCompleted: true,
+            completedAt: new Date().toISOString()
           } : uc
         ));
         
@@ -199,8 +199,8 @@ const UserChallenges: React.FC<UserChallengesProps> = ({ userId }) => {
                         {userChallenge.challenge?.description}
                       </p>
                     </div>
-                    <Badge variant={userChallenge.is_completed ? "success" : "outline"}>
-                      {userChallenge.is_completed ? "Completed" : "In Progress"}
+                    <Badge variant={userChallenge.isCompleted ? "outline" : "outline"}>
+                      {userChallenge.isCompleted ? "Completed" : "In Progress"}
                     </Badge>
                   </div>
                   
@@ -212,13 +212,13 @@ const UserChallenges: React.FC<UserChallengesProps> = ({ userId }) => {
                     <Progress value={userChallenge.progress} className="h-2" />
                   </div>
                   
-                  {!userChallenge.is_completed && user && user.id === userId && (
+                  {!userChallenge.isCompleted && user && user.id === userId && (
                     <div className="flex space-x-2 pt-2">
                       <Button 
                         variant="outline" 
                         size="sm"
                         onClick={() => handleUpdateProgress(
-                          userChallenge.challenge_id, 
+                          userChallenge.challengeId, 
                           Math.min(userChallenge.progress + 10, 100)
                         )}
                       >
@@ -229,7 +229,7 @@ const UserChallenges: React.FC<UserChallengesProps> = ({ userId }) => {
                         <Button 
                           variant="default" 
                           size="sm"
-                          onClick={() => handleCompleteChallenge(userChallenge.challenge_id)}
+                          onClick={() => handleCompleteChallenge(userChallenge.challengeId)}
                         >
                           Mark Complete
                         </Button>

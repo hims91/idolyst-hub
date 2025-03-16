@@ -1,10 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LeaderboardEntry } from '@/types/gamification';
-import gamificationService from '@/services/gamificationService';
+import * as gamificationService from '@/services/gamificationService';
 import { useToast } from '@/components/ui/use-toast';
-import { Trophy, Medal, Award, User, Shield } from 'lucide-react';
+import { Trophy, Medal, Award } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 
 const LeaderboardSection: React.FC = () => {
@@ -19,7 +20,9 @@ const LeaderboardSection: React.FC = () => {
         
         // Fetch leaderboard data
         const data = await gamificationService.getLeaderboard(20);
-        setLeaderboard(data || []);
+        if (data) {
+          setLeaderboard(data);
+        }
       } catch (error) {
         console.error('Error fetching leaderboard:', error);
         toast({

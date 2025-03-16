@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Event, EventFilter, EventFormData, EventWithDetails, PaginatedResponse, User } from '@/types/api';
 import { formatEventFromSupabase, safeGetProperty, safeQueryResult, safeSupabaseOperation } from '@/utils/supabaseHelpers';
@@ -71,74 +70,100 @@ export const getEvent = async (id: string): Promise<EventWithDetails | null> => 
 };
 
 // Function to create a new event
-export const createEvent = async (eventData: EventFormData, userId: string): Promise<string | null> => {
+export const createEvent = async (eventData: EventFormData): Promise<string | null> => {
   const { title, description, location, isVirtual, startDate, startTime, endDate, endTime, category, imageUrl, maxAttendees } = eventData;
 
-  const newEvent = {
-    title,
-    description,
-    location,
-    is_virtual: isVirtual,
-    start_date: startDate,
-    start_time: startTime,
-    end_date: endDate,
-    end_time: endTime,
-    category,
-    image_url: imageUrl,
-    max_attendees: maxAttendees,
-    current_attendees: 0,
-    user_id: userId,
-    status: 'upcoming',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !userData.user) {
+      console.error("User not authenticated.");
+      return null;
+    }
+    
+    const userId = userData.user.id;
 
-  const { data, error } = await supabase
-    .from(EVENTS_TABLE)
-    .insert([newEvent])
-    .select()
-    .single();
+    const newEvent = {
+      title,
+      description,
+      location,
+      is_virtual: isVirtual,
+      start_date: startDate,
+      start_time: startTime,
+      end_date: endDate,
+      end_time: endTime,
+      category,
+      image_url: imageUrl,
+      max_attendees: maxAttendees,
+      current_attendees: 0,
+      user_id: userId,
+      status: 'upcoming',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
-  if (error) {
-    console.error("Error creating event:", error);
+    const { data, error } = await supabase
+      .from(EVENTS_TABLE)
+      .insert([newEvent])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating event:", error);
+      return null;
+    }
+
+    return data.id;
+  } catch (error) {
+    console.error("Error in createEvent:", error);
     return null;
   }
-
-  return data.id;
 };
 
 // Function to update an existing event
 export const updateEvent = async (id: string, eventData: EventFormData): Promise<boolean> => {
   const { title, description, location, isVirtual, startDate, startTime, endDate, endTime, category, imageUrl, maxAttendees } = eventData;
 
-  const updatedEvent = {
-    title,
-    description,
-    location,
-    is_virtual: isVirtual,
-    start_date: startDate,
-    start_time: startTime,
-    end_date: endDate,
-    end_time: endTime,
-    category,
-    image_url: imageUrl,
-    max_attendees: maxAttendees,
-    updated_at: new Date().toISOString(),
-  };
+  try {
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !userData.user) {
+      console.error("User not authenticated.");
+      return false;
+    }
 
-  const { data, error } = await supabase
-    .from(EVENTS_TABLE)
-    .update(updatedEvent)
-    .eq('id', id)
-    .select()
-    .single();
+    const updatedEvent = {
+      title,
+      description,
+      location,
+      is_virtual: isVirtual,
+      start_date: startDate,
+      start_time: startTime,
+      end_date: endDate,
+      end_time: endTime,
+      category,
+      image_url: imageUrl,
+      max_attendees: maxAttendees,
+      updated_at: new Date().toISOString(),
+    };
 
-  if (error) {
-    console.error("Error updating event:", error);
+    const { data, error } = await supabase
+      .from(EVENTS_TABLE)
+      .update(updatedEvent)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating event:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error in updateEvent:", error);
     return false;
   }
-
-  return true;
 };
 
 // Function to delete an event
@@ -158,22 +183,31 @@ export const deleteEvent = async (id: string): Promise<boolean> => {
 
 // Function to get all event categories
 export const getEventCategories = async (): Promise<string[]> => {
-  // Direct SQL query since there's no event_categories table in the schema
-  const { data, error } = await supabase
-    .rpc('get_event_categories')
-    .select();
+  try {
+    // Direct SQL query using custom function
+    const { data, error } = await supabase
+      .from('events')
+      .select('category')
+      .order('category');
 
-  if (error) {
-    console.error("Error fetching event categories:", error);
-    // Return default categories as fallback
+    if (error) {
+      console.error("Error fetching event categories:", error);
+      // Return default categories as fallback
+      return ['Workshop', 'Conference', 'Meetup', 'Webinar', 'General'];
+    }
+
+    // Extract unique categories
+    const categories = Array.from(new Set(
+      data
+        .filter(item => item.category)
+        .map(item => item.category)
+    ));
+
+    return categories.length > 0 ? categories : ['Workshop', 'Conference', 'Meetup', 'Webinar', 'General'];
+  } catch (error) {
+    console.error("Error in getEventCategories:", error);
     return ['Workshop', 'Conference', 'Meetup', 'Webinar', 'General'];
   }
-
-  if (Array.isArray(data) && data.length > 0) {
-    return data.map(category => category.name || 'General');
-  }
-
-  return ['Workshop', 'Conference', 'Meetup', 'Webinar', 'General'];
 };
 
 // Function to register a user for an event
@@ -299,7 +333,7 @@ export const getEventAttendees = async (eventId: string): Promise<User[]> => {
 };
 
 // Export all functions together
-const eventService = {
+export { 
   getEvents,
   getEvent,
   createEvent,
@@ -311,5 +345,3 @@ const eventService = {
   isUserRegistered,
   getEventAttendees
 };
-
-export default eventService;

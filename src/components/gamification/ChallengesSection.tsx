@@ -1,11 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Calendar, Trophy, Clock, XCircle } from 'lucide-react';
 import { Challenge, UserChallenge } from '@/types/gamification';
-import gamificationService from '@/services/gamificationService';
+import * as gamificationService from '@/services/gamificationService';
 import { useToast } from '@/components/ui/use-toast';
 import { format, isAfter } from 'date-fns';
 import { useAuth } from '@/context/AuthContext';
@@ -32,7 +31,7 @@ const ChallengesSection: React.FC<ChallengesSectionProps> = ({ type }) => {
         if (type === 'available') {
           data = await gamificationService.getAvailableChallenges();
         } else {
-          data = await gamificationService.getUserChallenges(auth.user.id, type === 'completed');
+          data = await gamificationService.getUserChallenges(auth.user.id);
         }
         
         setChallenges(data || []);
@@ -57,7 +56,6 @@ const ChallengesSection: React.FC<ChallengesSectionProps> = ({ type }) => {
     try {
       await gamificationService.joinChallenge(auth.user.id, challengeId);
       
-      // Update the challenges list
       setChallenges(prev => 
         prev.filter(c => 'id' in c ? c.id !== challengeId : true)
       );
@@ -129,7 +127,6 @@ const ChallengesSection: React.FC<ChallengesSectionProps> = ({ type }) => {
       {challenges.map(challenge => {
         const isUserChallenge = 'progress' in challenge;
         
-        // For available challenges
         if (!isUserChallenge) {
           const hasStarted = !challenge.startDate || isAfter(new Date(), new Date(challenge.startDate));
           const hasEnded = challenge.endDate && isAfter(new Date(), new Date(challenge.endDate));
@@ -195,7 +192,6 @@ const ChallengesSection: React.FC<ChallengesSectionProps> = ({ type }) => {
           );
         }
         
-        // For user challenges (active or completed)
         const userChallenge = challenge as UserChallenge;
         
         return (
