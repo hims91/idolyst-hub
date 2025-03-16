@@ -17,9 +17,9 @@ const EventsPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const { data: events, isLoading: eventsLoading } = useQuery({
+  const { data: eventsData, isLoading: eventsLoading } = useQuery({
     queryKey: ['events', currentPage],
-    queryFn: () => eventService.getEvents(currentPage, 9),
+    queryFn: () => eventService.getEvents({ page: currentPage }),
   });
 
   const { data: categories, isLoading: categoriesLoading } = useQuery({
@@ -75,13 +75,13 @@ const EventsPage: React.FC = () => {
         )}
       </div>
       
-      {events && (
+      {eventsData && (
         <Events 
-          eventData={events?.items || []} 
+          eventData={eventsData?.events || []} 
           categories={categories || []}
-          totalEvents={events?.total || 0}
-          currentPage={events?.currentPage || 1}
-          totalPages={events?.totalPages || 1}
+          totalEvents={eventsData?.totalEvents || 0}
+          currentPage={eventsData?.currentPage || 1}
+          totalPages={eventsData?.totalPages || 1}
           onPageChange={setCurrentPage}
         />
       )}

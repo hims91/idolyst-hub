@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -7,7 +8,7 @@ import UserProfile from '@/components/user/UserProfile';
 import UserFollowModal from '@/components/user/UserFollowModal';
 import { getUserProfile, getUserPosts } from '@/services/userService';
 import gamificationService from '@/services/gamificationService';
-import userService from '@/services/api/user';
+import { userService } from '@/services/userService';
 
 const UserProfilePage = () => {
   const { userId } = useParams<{ userId: string }>();
@@ -118,23 +119,13 @@ const UserProfilePage = () => {
     return <div>Loading profile...</div>;
   }
 
-  if (!profile) {
+  if (!profile || !userId) {
     return <div>User not found</div>;
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <UserProfile
-        profile={profile}
-        posts={posts || []}
-        userLevel={userLevel || { level: 1, title: 'Newbie', pointsRequired: 0, pointsToNextLevel: 100, progressPercentage: 0 }}
-        badges={badges || []}
-        isOwnProfile={isOwnProfile}
-        onFollow={handleFollow}
-        onUnfollow={handleUnfollow}
-        onFollowersClick={handleFollowersClick}
-        onFollowingClick={handleFollowingClick}
-      />
+      <UserProfile userId={userId} />
 
       {userId && auth.user && (
         <UserFollowModal

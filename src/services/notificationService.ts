@@ -1,20 +1,21 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { Notification, User } from '@/types/api';
-import { safeQueryResult } from '@/utils/supabaseHelpers';
-import { checkTableExists } from '@/utils/supabaseHelpers';
-import { formatDistanceToNow } from 'date-fns';
-
-// Type guard to check if notification type is valid
-function isValidNotificationType(type: string): type is Notification['type'] {
-  return ['follow', 'like', 'comment', 'message', 'event', 'badge', 'system'].includes(type);
-}
+import { formatTimeAgo } from '@/lib/utils';
+import { safeQueryResult, checkTableExists } from '@/utils/supabaseHelpers';
 
 export const getNotifications = async (limit: number = 10): Promise<Notification[]> => {
   try {
-    const user = (await supabase.auth.getUser()).data.user;
+    const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
+      return [];
+    }
+    
+    // Check if the notifications table exists
+    const tableExists = await checkTableExists('notifications');
+    if (!tableExists) {
+      console.error('Notifications table does not exist');
       return [];
     }
     
@@ -38,33 +39,43 @@ export const getNotifications = async (limit: number = 10): Promise<Notification
       return [];
     }
     
-    const formattedNotifications: Notification[] = data.map(notification => {
-      // Ensure type is valid, default to 'system' if not
-      const validType = isValidNotificationType(notification.type) ? notification.type : 'system';
+    // Format notifications
+    const formattedNotifications: Notification[] = data.map((notification): Notification => {
+      // Safely handle sender data
+      const senderData = notification.sender ? notification.sender : null;
       
-      // Handle potentially null sender
-      const senderData = notification.sender || null;
-      let sender: User | undefined = undefined;
-      
-      if (senderData && typeof senderData === 'object' && !('code' in senderData)) {
-        sender = {
-          id: senderData.id,
-          name: senderData.name,
-          avatar: senderData.avatar,
-          role: senderData.role || 'user'
-        };
-      }
-      
+      // Validate notification type against the expected union type
+      const validTypes: Array<Notification['type']> = ['follow', 'like', 'comment', 'message', 'event', 'badge', 'system'];
+      const validatedType = validTypes.includes(notification.type as any) 
+        ? notification.type as Notification['type'] 
+        : 'system';
+          
       return {
         id: notification.id,
         userId: notification.user_id,
         title: notification.title,
         message: notification.message,
-        type: validType,
-        isRead: !!notification.is_read,
+        type: validatedType,
+        isRead: notification.is_read,
         createdAt: notification.created_at,
-        linkTo: notification.link_to || undefined,
-        sender
+        timeAgo: formatTimeAgo(notification.created_at),
+        linkTo: notification.link_to || '',
+        upvotes: 0,  // These fields are required by the Notification type but not in DB
+        downvotes: 0,
+        isUpvoted: false,
+        isDownvoted: false,
+        author: {
+          id: senderData?.id || '',
+          name: senderData?.name || 'System',
+          avatar: senderData?.avatar || '',
+          role: senderData?.role || 'system'
+        },
+        sender: senderData ? {
+          id: senderData.id || '',
+          name: senderData.name || 'Unknown',
+          avatar: senderData.avatar || '',
+          role: senderData.role || 'user'
+        } : undefined
       };
     });
     

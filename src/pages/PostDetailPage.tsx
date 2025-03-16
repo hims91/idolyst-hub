@@ -1,55 +1,33 @@
-
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/context/AuthContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Shell } from '@/components/ui/shell';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/spinner';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { formatDistanceToNow } from 'date-fns';
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from '@/context/AuthContext';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
-import {
-  BookmarkIcon,
-  HeartIcon,
-  MessageSquare,
-  Share2Icon,
-  ThumbsDown,
-  ThumbsUp,
-  MoreHorizontal,
-  Edit,
-  Trash2,
-  Reply,
-  UserRound,
-  Calendar,
-  Clock,
-  Link2,
-  MapPin,
-  Tag,
-  Eye,
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { commentService } from '@/services/commentService';
-import { postService } from '@/services/postService';
-import { userService } from '@/services/userService'; // Fix import to use named export
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { formatTimeAgo } from '@/lib/utils';
 import { Post, Comment } from '@/types/api';
+import { ThumbsUp, ThumbsDown, MessageSquare, Bookmark, Share2, MoreVertical, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import PostDetail from '@/components/post/PostDetail';
+import RelatedPosts from '@/components/post/RelatedPosts';
+import CommentSection from '@/components/CommentSection';
+import commentService from '@/services/commentService';
+import postService from '@/services/postService';
+import { userService } from '@/services/userService';
 
 interface PostDetailProps {
   post: Post;
@@ -66,6 +44,7 @@ const PostDetailPage = () => {
   const auth = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const [commentContent, setCommentContent] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -83,8 +62,7 @@ const PostDetailPage = () => {
     queryFn: () => commentService.getComments(postId || ''),
     enabled: !!postId,
   });
-  
-  // Submit comment handler
+
   const handleCommentSubmit = async (content: string, parentId?: string) => {
     if (!auth.user) {
       toast({
@@ -102,9 +80,7 @@ const PostDetailPage = () => {
     try {
       const newComment = await commentService.createComment(postId, content, parentId);
       
-      // Update comments state
       if (parentId) {
-        // Add reply to parent comment
         setComments(prevComments => 
           prevComments.map(comment => 
             comment.id === parentId 
@@ -116,7 +92,6 @@ const PostDetailPage = () => {
           )
         );
       } else {
-        // Add top-level comment
         setComments(prevComments => [...prevComments, newComment]);
       }
 
@@ -128,7 +103,6 @@ const PostDetailPage = () => {
         description: "Your comment has been posted successfully."
       });
       
-      // Refetch comments to update the UI
       refetchComments();
     } catch (error) {
       console.error("Error submitting comment:", error);
@@ -179,7 +153,7 @@ const PostDetailPage = () => {
 
   const CommentComponent: React.FC<CommentProps> = ({ comment, replies, onReply }) => {
     const [isReplying, setIsReplying] = useState(false);
-    const timeAgo = formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true });
+    const timeAgo = formatTimeAgo(new Date(comment.createdAt));
 
     return (
       <div className="mb-4">
@@ -282,7 +256,7 @@ const PostDetailPage = () => {
       <CardHeader>
         <CardTitle>{post.title}</CardTitle>
         <CardDescription>
-          By {post.author.name} - {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+          By {post.author.name} - {formatTimeAgo(new Date(post.createdAt))}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

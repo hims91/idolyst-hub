@@ -3,15 +3,17 @@ import { PostgrestError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 // Helper function to safely get a property from an object that might be an error
-export function safeGetProperty<T, K extends keyof T>(
+export function safeGetProperty<T, K extends keyof any>(
   obj: T | { code?: string; error?: string; message?: string },
   property: K,
   defaultValue: any
-): T[K] {
+): any {
   if (!obj || typeof obj !== 'object' || 'code' in obj) {
     return defaultValue;
   }
-  return (obj as T)[property] !== undefined ? (obj as T)[property] : defaultValue;
+  
+  // Use optional chaining to safely access the property
+  return (obj as any)[property] !== undefined ? (obj as any)[property] : defaultValue;
 }
 
 // Helper to safely execute a Supabase operation and handle errors consistently
@@ -111,10 +113,12 @@ export async function checkColumnExists(table: string, column: string): Promise<
 export async function checkTableExists(tableName: string): Promise<boolean> {
   try {
     // Using a simplified approach to check if table exists
-    const { data, error } = await supabase
+    const query = supabase
       .from(tableName as any)
       .select('*')
       .limit(1);
+      
+    const { error } = await query;
     
     if (error && error.code === '42P01') { // Table does not exist error code
       return false;

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Event, EventWithDetails, User, EventFilter, EventFormData } from '@/types/api';
 import { formatDistanceToNow } from 'date-fns';
@@ -112,6 +111,36 @@ export const getEvents = async (
   }
 };
 
+// Get event categories
+export const getEventCategories = async (): Promise<string[]> => {
+  try {
+    // Fetch distinct categories from events table
+    const { data, error } = await supabase
+      .from('events')
+      .select('category')
+      .not('category', 'is', null);
+      
+    if (error) {
+      console.error('Error fetching event categories:', error);
+      return ['General', 'Workshop', 'Conference', 'Meetup', 'Webinar'];
+    }
+    
+    // Extract unique categories
+    const categories = [...new Set(data.map(item => item.category))].filter(Boolean);
+    
+    // If no categories found, return defaults
+    if (categories.length === 0) {
+      return ['General', 'Workshop', 'Conference', 'Meetup', 'Webinar'];
+    }
+    
+    return categories;
+  } catch (error) {
+    console.error('Error in getEventCategories:', error);
+    // Return default categories if there's an error
+    return ['General', 'Workshop', 'Conference', 'Meetup', 'Webinar'];
+  }
+};
+
 // Get a single event by ID with details
 export const getEvent = async (eventId: string): Promise<EventWithDetails | null> => {
   try {
@@ -191,7 +220,7 @@ export const getEventAttendees = async (eventId: string): Promise<User[]> => {
     // Extract and format user data from attendees
     const attendees: User[] = data.map(attendee => {
       // Make sure to handle the case where user might be null
-      if (!attendee.user || typeof attendee.user === 'object' && 'code' in attendee.user) {
+      if (!attendee.user || (typeof attendee.user === 'object' && 'code' in attendee.user)) {
         return {
           id: attendee.user_id || 'unknown',
           name: 'Unknown User',
@@ -201,10 +230,10 @@ export const getEventAttendees = async (eventId: string): Promise<User[]> => {
       }
       
       return {
-        id: attendee.user.id || attendee.user_id || 'unknown',
-        name: attendee.user.name || 'Unknown User',
-        avatar: attendee.user.avatar || '',
-        role: attendee.user.role || 'user'
+        id: safeGetProperty(attendee.user, 'id', attendee.user_id || 'unknown'),
+        name: safeGetProperty(attendee.user, 'name', 'Unknown User'),
+        avatar: safeGetProperty(attendee.user, 'avatar', ''),
+        role: safeGetProperty(attendee.user, 'role', 'user')
       };
     });
 
@@ -339,7 +368,7 @@ export const cancelEventRegistration = async (eventId: string): Promise<boolean>
 };
 
 // Create a new event
-export const createEvent = async (eventData: EventFormData): Promise<Event | null> => {
+export const createEvent = async (eventData: EventFormData): Promise<string | null> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -372,7 +401,7 @@ export const createEvent = async (eventData: EventFormData): Promise<Event | nul
       throw new Error('Failed to create event. Please try again.');
     }
     
-    return formatEventFromSupabase(data);
+    return data.id;
   } catch (error) {
     console.error('Error in createEvent:', error);
     if (error instanceof Error) {
@@ -383,7 +412,7 @@ export const createEvent = async (eventData: EventFormData): Promise<Event | nul
 };
 
 // Update an existing event
-export const updateEvent = async (eventId: string, eventData: Partial<EventFormData>): Promise<Event | null> => {
+export const updateEvent = async (eventId: string, eventData: Partial<EventFormData>): Promise<boolean> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     
@@ -408,7 +437,7 @@ export const updateEvent = async (eventId: string, eventData: Partial<EventFormD
     }
     
     // Update the event
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('events')
       .update({
         title: eventData.title,
@@ -424,16 +453,14 @@ export const updateEvent = async (eventId: string, eventData: Partial<EventFormD
         max_attendees: eventData.maxAttendees,
         updated_at: new Date().toISOString()
       })
-      .eq('id', eventId)
-      .select()
-      .single();
+      .eq('id', eventId);
       
     if (error) {
       console.error('Error updating event:', error);
       throw new Error('Failed to update event. Please try again.');
     }
     
-    return formatEventFromSupabase(data);
+    return true;
   } catch (error) {
     console.error('Error in updateEvent:', error);
     if (error instanceof Error) {
@@ -498,7 +525,8 @@ export const eventService = {
   cancelEventRegistration,
   createEvent,
   updateEvent,
-  deleteEvent
+  deleteEvent,
+  getEventCategories
 };
 
 export default eventService;

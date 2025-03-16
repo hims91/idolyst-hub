@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { UserChallenges } from './UserChallenges';
+import UserChallenges from './UserChallenges';
 
 const UserProfile = ({ userId }: { userId: string }) => {
   return (
