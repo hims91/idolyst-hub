@@ -2,131 +2,114 @@
 import { PostgrestError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-// Helper function to safely get a property from an object that might be an error
-export function safeGetProperty<T, K extends keyof any>(
-  obj: T | { code?: string; error?: string; message?: string },
-  property: K,
-  defaultValue: any
-): any {
-  if (!obj || typeof obj !== 'object' || 'code' in obj) {
+// Helper function to check if a table exists
+export const checkTableExists = async (tableName: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('information_schema.tables')
+      .select('table_name')
+      .eq('table_schema', 'public')
+      .eq('table_name', tableName);
+
+    if (error) {
+      console.error(`Error checking if table exists: ${tableName}`, error);
+      return false;
+    }
+
+    return (data?.length || 0) > 0;
+  } catch (error) {
+    console.error(`Error in checkTableExists for table: ${tableName}`, error);
+    return false;
+  }
+};
+
+// Helper function to check if a column exists in a table
+export const checkColumnExists = async (tableName: string, columnName: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase.rpc('check_column_exists', {
+      table_name: tableName,
+      column_name: columnName,
+    });
+
+    if (error) {
+      console.error(`Error checking if column exists: ${tableName}.${columnName}`, error);
+      return false;
+    }
+
+    return !!data;
+  } catch (error) {
+    console.error(`Error in checkColumnExists for column: ${tableName}.${columnName}`, error);
+    return false;
+  }
+};
+
+// Safe getter for object properties
+export const safeGetProperty = (obj: any, key: string, defaultValue: any): any => {
+  if (!obj || obj[key] === undefined) {
     return defaultValue;
   }
-  
-  // Use optional chaining to safely access the property
-  return (obj as any)[property] !== undefined ? (obj as any)[property] : defaultValue;
-}
+  return obj[key];
+};
 
-// Helper to safely execute a Supabase operation and handle errors consistently
-export async function safeSupabaseOperation<T>(
-  operation: Promise<{ data: T | null; error: PostgrestError | null }>,
-  errorMessage: string = 'Database operation failed'
-): Promise<T | null> {
+// Format event data from Supabase
+export const formatEventFromSupabase = (event: any): any => {
+  if (!event) return null;
+
+  return {
+    id: event.id,
+    title: event.title,
+    description: event.description,
+    location: event.location,
+    isVirtual: event.is_virtual,
+    startDate: event.start_date,
+    endDate: event.end_date,
+    startTime: event.start_time,
+    endTime: event.end_time,
+    category: event.category,
+    imageUrl: event.image_url,
+    maxAttendees: event.max_attendees,
+    currentAttendees: event.current_attendees,
+    status: event.status,
+    createdAt: event.created_at,
+    updatedAt: event.updated_at,
+    organizer: {
+      id: safeGetProperty(event.organizer, 'id', ''),
+      name: safeGetProperty(event.organizer, 'name', 'Unknown Organizer'),
+      avatar: safeGetProperty(event.organizer, 'avatar', ''),
+      role: safeGetProperty(event.organizer, 'role', 'user')
+    }
+  };
+};
+
+// Safe query result handler
+export const safeQueryResult = <T>(data: T | null, error: PostgrestError | null): { data: T | null; error: string | null } => {
+  if (error) {
+    console.error('Query error:', error);
+    return { data: null, error: error.message };
+  }
+  return { data, error: null };
+};
+
+// Safe Supabase operation handler
+export const safeSupabaseOperation = async <T>(operation: Promise<{ data: T | null; error: PostgrestError | null }>): Promise<T | null> => {
   try {
     const { data, error } = await operation;
     if (error) {
-      console.error(`${errorMessage}:`, error);
+      console.error('Supabase operation error:', error);
       return null;
     }
     return data;
   } catch (err) {
-    console.error(`${errorMessage}:`, err);
+    console.error('Unexpected error in Supabase operation:', err);
     return null;
   }
-}
+};
 
-// Safe query execution with proper error handling
-export async function safeQueryResult<T>(
-  operation: Promise<{ data: T | null; error: PostgrestError | null }>,
-  defaultValue: T | null = null
-): Promise<T | null> {
-  try {
-    const { data, error } = await operation;
-    if (error) {
-      console.error("Query error:", error);
-      return defaultValue;
-    }
-    return data;
-  } catch (err) {
-    console.error("Unexpected error in query:", err);
-    return defaultValue;
-  }
-}
-
-// Format event data from Supabase to match our EventWithDetails type
-export function formatEventFromSupabase(event: any): any {
-  if (!event) return null;
-  
-  // Handle case where event is an error object
-  if ('code' in event) {
-    console.error("Error in event data:", event);
+// Helper function to handle query results with proper type checking
+export const handleQueryResult = <T>(result: { data: T | null; error: PostgrestError | null }): T | null => {
+  if (result.error) {
+    console.error('Query error:', result.error);
     return null;
   }
-  
-  return {
-    id: event.id || '',
-    title: event.title || '',
-    description: event.description || '',
-    location: event.location || '',
-    isVirtual: event.is_virtual || false,
-    startDate: event.start_date || '',
-    startTime: event.start_time || '',
-    endDate: event.end_date || '',
-    endTime: event.end_time || '',
-    category: event.category || 'General',
-    imageUrl: event.image_url || '',
-    maxAttendees: event.max_attendees || null,
-    currentAttendees: event.current_attendees || 0,
-    organizer: {
-      id: safeGetProperty(event.organizer, 'id', ''),
-      name: safeGetProperty(event.organizer, 'name', 'Unknown'),
-      avatar: safeGetProperty(event.organizer, 'avatar', ''),
-      role: safeGetProperty(event.organizer, 'role', 'user')
-    },
-    status: event.status || 'upcoming',
-    createdAt: event.created_at || '',
-    updatedAt: event.updated_at || '',
-    isRegistered: Array.isArray(event.is_registered) && event.is_registered.length > 0
-  };
-}
-
-// Check if a column exists in a table
-export async function checkColumnExists(table: string, column: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase.rpc('check_column_exists', {
-      table_name: table,
-      column_name: column
-    });
-    
-    if (error) {
-      console.error(`Error checking if column ${column} exists in table ${table}:`, error);
-      return false;
-    }
-    
-    return !!data;
-  } catch (error) {
-    console.error(`Error checking column existence:`, error);
-    return false;
-  }
-}
-
-// Check if a table exists in the database
-export async function checkTableExists(tableName: string): Promise<boolean> {
-  try {
-    // Using a simplified approach to check if table exists
-    const query = supabase
-      .from(tableName as any)
-      .select('*')
-      .limit(1);
-      
-    const { error } = await query;
-    
-    if (error && error.code === '42P01') { // Table does not exist error code
-      return false;
-    }
-    
-    return true;
-  } catch (error) {
-    console.error(`Error checking if table ${tableName} exists:`, error);
-    return false;
-  }
-}
+  return result.data;
+};

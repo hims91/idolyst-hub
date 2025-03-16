@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { safeGetProperty } from '@/utils/supabaseHelpers';
 
@@ -34,26 +35,52 @@ export const getUserLevel = async (userId: string): Promise<any> => {
 };
 
 // Get user badges
-export const getUserBadges = async (userId: string): Promise<any[]> => {
+export const getUserBadges = async (userId: string, type = 'earned'): Promise<any[]> => {
   try {
-    const { data, error } = await supabase
-      .from('user_badges')
-      .select(`
-        badge_id,
-        badge:badge_id (
-          id,
-          name,
-          icon
-        )
-      `)
-      .eq('user_id', userId);
+    if (type === 'earned') {
+      const { data, error } = await supabase
+        .from('user_badges')
+        .select(`
+          badge_id,
+          badge:badge_id (
+            id,
+            name,
+            icon
+          )
+        `)
+        .eq('user_id', userId);
 
-    if (error) {
-      console.error('Error fetching user badges:', error);
-      return [];
+      if (error) {
+        console.error('Error fetching user badges:', error);
+        return [];
+      }
+
+      return data?.map(item => item.badge) || [];
+    } else {
+      // Get available badges (not yet earned)
+      const { data: allBadges, error: badgesError } = await supabase
+        .from('badges')
+        .select('*');
+
+      if (badgesError) {
+        console.error('Error fetching badges:', badgesError);
+        return [];
+      }
+
+      const { data: userBadges, error: userBadgesError } = await supabase
+        .from('user_badges')
+        .select('badge_id')
+        .eq('user_id', userId);
+
+      if (userBadgesError) {
+        console.error('Error fetching user badges:', userBadgesError);
+        return [];
+      }
+
+      // Filter out badges the user already has
+      const earnedBadgeIds = new Set((userBadges || []).map(ub => ub.badge_id));
+      return (allBadges || []).filter(badge => !earnedBadgeIds.has(badge.id));
     }
-
-    return data?.map(item => item.badge) || [];
   } catch (error) {
     console.error('Error in getUserBadges:', error);
     return [];
@@ -61,7 +88,7 @@ export const getUserBadges = async (userId: string): Promise<any[]> => {
 };
 
 // Get leaderboard
-export const getLeaderboard = async (): Promise<LeaderboardEntry[]> => {
+export const getLeaderboard = async (limit = 20): Promise<LeaderboardEntry[]> => {
   try {
     const { data, error } = await supabase
       .from('user_stats')
@@ -74,7 +101,7 @@ export const getLeaderboard = async (): Promise<LeaderboardEntry[]> => {
         challenge_count
       `)
       .order('points', { ascending: false })
-      .limit(100);
+      .limit(limit);
 
     if (error) {
       console.error('Error fetching leaderboard:', error);
@@ -234,3 +261,17 @@ export const getAvailableChallenges = async (): Promise<any[]> => {
       return false;
     }
   };
+
+// Export all functions together
+const gamificationService = {
+  getUserLevel,
+  getUserBadges,
+  getLeaderboard,
+  getAvailableChallenges,
+  getUserChallenges,
+  joinChallenge,
+  updateChallengeProgress,
+  completeChallenge
+};
+
+export default gamificationService;

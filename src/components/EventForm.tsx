@@ -1,3 +1,5 @@
+
+// Update imports at the top to use named exports
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -24,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import eventService from '@/services/eventService';
+import { createEvent, updateEvent, getEventCategories } from '@/services/eventService';
 import { EventFormData, EventWithDetails } from '@/types/api';
 
 const eventFormSchema = z.object({

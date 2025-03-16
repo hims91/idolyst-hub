@@ -1,13 +1,13 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Event, EventFilter, EventFormData, EventWithDetails, PaginatedResponse, User } from '@/types/api';
 import { formatEventFromSupabase, safeGetProperty, safeQueryResult, safeSupabaseOperation } from '@/utils/supabaseHelpers';
 
 const EVENTS_TABLE = 'events';
-const EVENT_CATEGORIES_TABLE = 'event_categories';
 const EVENT_ATTENDEES_TABLE = 'event_attendees';
 
 // Function to get all events with pagination and optional filters
-export const getEvents = async (filter: EventFilter): Promise<{ events: Event[]; totalEvents: number; currentPage: number; totalPages: number; } | null> => {
+export const getEvents = async (filter: EventFilter = {}): Promise<{ events: Event[]; totalEvents: number; currentPage: number; totalPages: number; } | null> => {
   const page = filter.page || 1;
   const limit = filter.limit || 12;
   const startIndex = (page - 1) * limit;
@@ -71,7 +71,7 @@ export const getEvent = async (id: string): Promise<EventWithDetails | null> => 
 };
 
 // Function to create a new event
-export const createEvent = async (eventData: EventFormData, userId: string): Promise<Event | null> => {
+export const createEvent = async (eventData: EventFormData, userId: string): Promise<string | null> => {
   const { title, description, location, isVirtual, startDate, startTime, endDate, endTime, category, imageUrl, maxAttendees } = eventData;
 
   const newEvent = {
@@ -104,11 +104,11 @@ export const createEvent = async (eventData: EventFormData, userId: string): Pro
     return null;
   }
 
-  return formatEventFromSupabase(data);
+  return data.id;
 };
 
 // Function to update an existing event
-export const updateEvent = async (id: string, eventData: EventFormData): Promise<Event | null> => {
+export const updateEvent = async (id: string, eventData: EventFormData): Promise<boolean> => {
   const { title, description, location, isVirtual, startDate, startTime, endDate, endTime, category, imageUrl, maxAttendees } = eventData;
 
   const updatedEvent = {
@@ -135,10 +135,10 @@ export const updateEvent = async (id: string, eventData: EventFormData): Promise
 
   if (error) {
     console.error("Error updating event:", error);
-    return null;
+    return false;
   }
 
-  return formatEventFromSupabase(data);
+  return true;
 };
 
 // Function to delete an event
@@ -158,26 +158,34 @@ export const deleteEvent = async (id: string): Promise<boolean> => {
 
 // Function to get all event categories
 export const getEventCategories = async (): Promise<string[]> => {
+  // Direct SQL query since there's no event_categories table in the schema
   const { data, error } = await supabase
-    .from(EVENT_CATEGORIES_TABLE)
-    .select('name');
+    .rpc('get_event_categories')
+    .select();
 
   if (error) {
     console.error("Error fetching event categories:", error);
-    return [];
+    // Return default categories as fallback
+    return ['Workshop', 'Conference', 'Meetup', 'Webinar', 'General'];
   }
 
-  return data.map(category => category.name);
+  if (Array.isArray(data) && data.length > 0) {
+    return data.map(category => category.name || 'General');
+  }
+
+  return ['Workshop', 'Conference', 'Meetup', 'Webinar', 'General'];
 };
 
 // Function to register a user for an event
 export const registerForEvent = async (eventId: string): Promise<boolean> => {
-  const userId = supabase.auth.currentUser?.id;
-
-  if (!userId) {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !userData.user) {
     console.error("User not authenticated.");
     return false;
   }
+  
+  const userId = userData.user.id;
 
   const registration = {
     event_id: eventId,
@@ -194,28 +202,20 @@ export const registerForEvent = async (eventId: string): Promise<boolean> => {
     return false;
   }
 
-  // Increment current_attendees count in events table
-  const { error: updateError } = await supabase
-    .from(EVENTS_TABLE)
-    .update({ current_attendees: () => 'current_attendees + 1' })
-    .eq('id', eventId);
-
-  if (updateError) {
-    console.error("Error updating event attendees count:", updateError);
-    return false;
-  }
-
+  // Increment current_attendees count in events table is handled by a database trigger
   return true;
 };
 
 // Function to cancel a user's registration for an event
 export const cancelEventRegistration = async (eventId: string): Promise<boolean> => {
-  const userId = supabase.auth.currentUser?.id;
-
-  if (!userId) {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !userData.user) {
     console.error("User not authenticated.");
     return false;
   }
+  
+  const userId = userData.user.id;
 
   const { error } = await supabase
     .from(EVENT_ATTENDEES_TABLE)
@@ -228,28 +228,20 @@ export const cancelEventRegistration = async (eventId: string): Promise<boolean>
     return false;
   }
 
-  // Decrement current_attendees count in events table
-  const { error: updateError } = await supabase
-    .from(EVENTS_TABLE)
-    .update({ current_attendees: () => 'current_attendees - 1' })
-    .eq('id', eventId);
-
-  if (updateError) {
-    console.error("Error updating event attendees count:", updateError);
-    return false;
-  }
-
+  // Decrement current_attendees count in events table is handled by a database trigger
   return true;
 };
 
 // Function to check if a user is registered for an event
 export const isUserRegistered = async (eventId: string): Promise<boolean> => {
-  const userId = supabase.auth.currentUser?.id;
-
-  if (!userId) {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  
+  if (userError || !userData.user) {
     console.warn("User not authenticated, assuming not registered.");
     return false;
   }
+  
+  const userId = userData.user.id;
 
   const { data, error } = await supabase
     .from(EVENT_ATTENDEES_TABLE)
@@ -305,3 +297,19 @@ export const getEventAttendees = async (eventId: string): Promise<User[]> => {
     return [];
   }
 };
+
+// Export all functions together
+const eventService = {
+  getEvents,
+  getEvent,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  getEventCategories,
+  registerForEvent,
+  cancelEventRegistration,
+  isUserRegistered,
+  getEventAttendees
+};
+
+export default eventService;

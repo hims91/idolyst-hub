@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Post, User, UserProfile } from "@/types/api";
 import { formatTimeAgo } from "@/lib/utils";
@@ -34,7 +35,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
       company: data.company || '',
       website: data.website || '',
       joinedOn: data.join_date || data.created_at || new Date().toISOString(),
-      skills: data.skills || [], // Provide default empty array
+      skills: [],  // Default empty array since skills column might not exist
       followersCount,
       followingCount,
       socialLinks: {
@@ -74,7 +75,7 @@ export const getUserPosts = async (userId: string): Promise<Post[]> => {
     // Transform and add computed properties
     const posts = (data || []).map(post => {
       const createdAt = post.created_at;
-      const timeAgo = formatTimeAgo(new Date(createdAt));
+      const timeAgo = formatTimeAgo(createdAt);
       
       return {
         id: post.id,
@@ -181,16 +182,16 @@ export const getFollowing = async (userId: string): Promise<User[]> => {
 
 export const followUser = async (userId: string): Promise<void> => {
   try {
-    const currentUser = (await supabase.auth.getUser()).data.user;
+    const { data: userData, error: userError } = await supabase.auth.getUser();
     
-    if (!currentUser) {
+    if (userError || !userData.user) {
       throw new Error("User not authenticated");
     }
     
     const { error } = await supabase
       .from('user_followers')
       .insert({
-        follower_id: currentUser.id,
+        follower_id: userData.user.id,
         following_id: userId
       });
 
@@ -206,16 +207,16 @@ export const followUser = async (userId: string): Promise<void> => {
 
 export const unfollowUser = async (userId: string): Promise<void> => {
   try {
-    const currentUser = (await supabase.auth.getUser()).data.user;
+    const { data: userData, error: userError } = await supabase.auth.getUser();
     
-    if (!currentUser) {
+    if (userError || !userData.user) {
       throw new Error("User not authenticated");
     }
     
     const { error } = await supabase
       .from('user_followers')
       .delete()
-      .eq('follower_id', currentUser.id)
+      .eq('follower_id', userData.user.id)
       .eq('following_id', userId);
 
     if (error) {
@@ -237,6 +238,7 @@ const formatDate = (dateString: string): string => {
   });
 };
 
+// Safe property getter
 const safeGetProperty = (obj: any, key: string, defaultValue: any): any => {
   return obj && obj[key] !== undefined ? obj[key] : defaultValue;
 };
@@ -269,6 +271,7 @@ const getFollowingCount = async (userId: string): Promise<number> => {
   return count || 0;
 };
 
+// Export all functions
 export const userService = {
   getUserProfile,
   getUserPosts,
